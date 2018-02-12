@@ -105,8 +105,10 @@ coreos:
         After=docker.service
         ConditionPathExists=!/vagrant/artifacts/hyperkube___RELEASE__.tar
         [Service]
-        ExecStart=/usr/bin/docker pull gcr.io/google_containers/hyperkube-amd64:__RELEASE__
-        ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube___RELEASE__.tar gcr.io/google_containers/hyperkube-amd64:__RELEASE__
+        # ExecStart=/usr/bin/docker pull gcr.io/google_containers/hyperkube-amd64:__RELEASE__
+        # ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube___RELEASE__.tar gcr.io/google_containers/hyperkube-amd64:__RELEASE__
+        ExecStart=/usr/bin/docker pull wangwg2/hyperkube-amd64:__RELEASE__
+        ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube___RELEASE__.tar wangwg2/hyperkube-amd64:__RELEASE__
         Type=oneshot
         RemainAfterExit=true
     - name: hyperkube-import.service
@@ -145,7 +147,7 @@ coreos:
           --privileged=true \
           --name=kubelet \
           -d \
-          gcr.io/google_containers/hyperkube-amd64:__RELEASE__ \
+          wangwg2/hyperkube-amd64:__RELEASE__ \
             /hyperkube kubelet \
             --address=$private_ipv4 \
             --network-plugin= \

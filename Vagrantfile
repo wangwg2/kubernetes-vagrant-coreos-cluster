@@ -82,7 +82,9 @@ MANIFESTS_DIR = Pathname.getwd().join("manifests")
 USE_DOCKERCFG = ENV['USE_DOCKERCFG'] || false
 DOCKERCFG = File.expand_path(ENV['DOCKERCFG'] || "~/.dockercfg")
 
-DOCKER_OPTIONS = ENV['DOCKER_OPTIONS'] || ''
+# DOCKER_OPTIONS = ENV['DOCKER_OPTIONS'] || ''
+DOCKER_OPTIONS = ENV['DOCKER_OPTIONS'] || '--registry-mirror=https://4ue5z1dy.mirror.aliyuncs.com'
+
 
 KUBERNETES_VERSION = ENV['KUBERNETES_VERSION'] || '1.9.2'
 
@@ -110,12 +112,13 @@ end
 NODES = ENV['NODES'] || 2
 
 MASTER_MEM = ENV['MASTER_MEM'] || 1024
-MASTER_CPUS = ENV['MASTER_CPUS'] || 2
+MASTER_CPUS = ENV['MASTER_CPUS'] || 1
 
 NODE_MEM= ENV['NODE_MEM'] || 2048
-NODE_CPUS = ENV['NODE_CPUS'] || 2
+NODE_CPUS = ENV['NODE_CPUS'] || 1
 
-BASE_IP_ADDR = ENV['BASE_IP_ADDR'] || "172.17.8"
+# BASE_IP_ADDR = ENV['BASE_IP_ADDR'] || "172.17.8"
+BASE_IP_ADDR = ENV['BASE_IP_ADDR'] || "192.168.99"
 
 DNS_PROVIDER = ENV['DNS_PROVIDER'] || "coredns"
 DNS_DOMAIN = ENV['DNS_DOMAIN'] || "cluster.local"
@@ -270,7 +273,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
                 f.write(dnsData)
               end
           else if DNS_PROVIDER == "coredns"
-                system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/plugins/dns/coredns/coredns.yaml.sed > #{__dir__}/temp/coredns-deployment.yaml"
+                # system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/plugins/dns/coredns/coredns.yaml.sed > #{__dir__}/temp/coredns-deployment.yaml"
+                system "cp #{__dir__}/plugins/dns/coredns/coredns.yaml.sed #{__dir__}/temp/coredns-deployment.yaml"
+                system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/temp/coredns-deployment.yaml"                
                end
           end
         end
