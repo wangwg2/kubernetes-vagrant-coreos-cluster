@@ -13,7 +13,7 @@ spec:
       - scheduler
       - --pod-infra-container-image=wangwg2/pause-amd64:3.0
       - --master=http://__MASTER_IP__:8080
-      livenessProbe:
+    livenessProbe:
       httpGet:
         host: 127.0.0.1
         path: /healthz
