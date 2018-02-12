@@ -11,6 +11,7 @@ spec:
     command:
       - /hyperkube
       - proxy
+      - --pod-infra-container-image=wangwg2/pause-amd64:3.0
       - --master=http://__MASTER_IP__:8080
       - --kubeconfig=/etc/kubernetes/node-kubeconfig.yaml
       - --proxy-mode=iptables

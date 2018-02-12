@@ -132,7 +132,7 @@ coreos:
           --privileged=true \
           --name=kubelet \
           -d \
-          gcr.io/google_containers/hyperkube-amd64:__RELEASE__ \
+          wangwg2/hyperkube-amd64:__RELEASE__ \
             /hyperkube kubelet \
             --containerized \
             --address=$private_ipv4 \

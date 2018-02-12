@@ -151,6 +151,7 @@ coreos:
             /hyperkube kubelet \
             --address=$private_ipv4 \
             --network-plugin= \
+            --pod-infra-container-image=wangwg2/pause-amd64:3.0 \
             --register-schedulable=false \
             --allow-privileged=true \
             --pod-manifest-path=/etc/kubernetes/manifests \

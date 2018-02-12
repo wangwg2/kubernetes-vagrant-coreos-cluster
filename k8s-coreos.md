@@ -18,6 +18,10 @@ Update 1: 为网路环境修改
   `manifests/master-proxy.yaml`
   `manifests/master-scheduler.yaml`
   `manifests/node-proxy.yaml`
+* `hyperkube kubelet` 会 pull 镜像 `gcr.io/google_containers/pause-amd64:3.0`。
+  解决镜像被墙问题，改为 `wangwg2/pause-amd64:3.0`。
+  为 `\hyperkube kubelet` 增加 `--pod-infra-container-image=wangwg2/pause-amd64:3.0 \`
+* `docker logs -f container_name` 查看容器日志分析问题。
 
 
 ###### Vagrantfile 解析

@@ -11,6 +11,7 @@ spec:
     command:
       - /hyperkube
       - apiserver
+      - --pod-infra-container-image=wangwg2/pause-amd64:3.0
       - --storage-media-type=application/json
       - --bind-address=0.0.0.0
       - --insecure-bind-address=0.0.0.0
