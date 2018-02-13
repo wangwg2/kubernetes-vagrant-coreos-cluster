@@ -5,7 +5,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
-      <link rel="stylesheet" href="file:///C:\Users\wangwg2\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.3.2\node_modules\@shd101wyy\mume\dependencies\katex\katex.min.css">
+      <link rel="stylesheet" href="file:///C:\Users\wangw\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.3.2\node_modules\@shd101wyy\mume\dependencies\katex\katex.min.css">
       
       
       
@@ -221,7 +221,7 @@ html body h6 {
 }
 html body pre,
 html body code {
-  font-family: "Microsoft YaHei Mono", "Monaco", "Courier New", "Microsoft YaHei", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", sans-serif;
+  font-family: "Monaco", "Courier New", "Microsoft YaHei", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", sans-serif;
 }
  
       </style>
@@ -234,17 +234,26 @@ html body code {
 参考 <a href="https://github.com/pires/kubernetes-vagrant-coreos-cluster">pires/kubernetes-vagrant-coreos-cluster</a>.</p>
 <h3 class="mume-header" id="%E4%BF%AE%E6%94%B9%E8%AF%B4%E6%98%8E">修改说明</h3>
 
-<h6 class="mume-header" id="%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E">文件说明</h6>
+<h6 class="mume-header" id="update-log">Update Log</h6>
 
+<p>Update 1: 为网路环境修改</p>
 <ul>
-<li><code>Vagrantfile</code></li>
-<li><code>master.yml</code><br>
-Master 主机 <code>user-data</code>文件</li>
-<li><code>node.yml</code><br>
-Node 主机 <code>user-data</code> 文件</li>
-<li><code>plugins/dns/coredns/deploy.sh</code></li>
-<li><code>setup.tmpl</code><br>
-<code>kubectl</code> 下载慢</li>
+<li>新增说明文档： <code>k8s-coreos.md</code>、<code>k8s-coreos.html</code></li>
+<li>修改 <code>Vagrantfile</code>, 修改 <code>MASTER_CPUS</code> / <code>BASE_IP_ADDR</code> 设置 与 windows 重定向问题</li>
+<li>修改 <code>plugins/dns/coredns/deploy.sh</code>, 解决 windows 下脚本重定向输出问题（结合<code>Vagrantfile</code>修改）。</li>
+<li><code>setup.tmpl</code> 文件, 修改 “<code>KUB_URL=</code>” 为本地下载地址</li>
+<li>以下文件中 “<code>gcr.io/google_containers/hyperkube-amd64</code>” 修改为 “<code>wangwg2/hyperkube-amd64</code>”<br>
+<code>master.yaml</code><br>
+<code>manifests/master-apiserver-rbac.yaml</code><br>
+<code>manifests/master-apiserver.yaml</code><br>
+<code>manifests/master-controller-manager.yaml</code><br>
+<code>manifests/master-proxy.yaml</code><br>
+<code>manifests/master-scheduler.yaml</code><br>
+<code>manifests/node-proxy.yaml</code></li>
+<li><code>hyperkube kubelet</code> 会 pull 镜像 <code>gcr.io/google_containers/pause-amd64:3.0</code>。<br>
+解决镜像被墙问题，改为 <code>wangwg2/pause-amd64:3.0</code>。<br>
+为 <code>\hyperkube kubelet</code> 增加 <code>--pod-infra-container-image=wangwg2/pause-amd64:3.0 \</code></li>
+<li><code>docker logs -f container_name</code> 查看容器日志分析问题。</li>
 </ul>
 <h6 class="mume-header" id="vagrantfile-%E8%A7%A3%E6%9E%90">Vagrantfile 解析</h6>
 
@@ -604,25 +613,29 @@ write<span class="token punctuation">-</span>files
     <span class="token key atrule">reboot-strategy</span><span class="token punctuation">:</span> off
 </pre>
 <ul>
-<li>rpcbind.service<br>
+<li>rpcbind.service  {enable: true, command: start }<br>
 [active] [running]</li>
-<li>rpc-statd.service<br>
+<li>rpc-statd.service {enable: true, command: start }<br>
 [active] [running]</li>
-<li>etcd-member.service<br>
+<li>etcd-member.service {Type=notify, Restart=always ExecStart=...}<br>
 [active] [running]</li>
-<li>flanneld.service<br>
+<li>flanneld.service { command: start }<br>
 [active] [running]</li>
-<li>docker.service<br>
+<li>docker.service { command: start }<br>
 [active] [running]</li>
 <li>early-docker.service<br>
 [--]</li>
 <li>kube-certs.service<br>
+{ command: start ExecStart=/tmp/make-certs.sh Type=oneshot RemainAfterExit=true }<br>
 [active] [dead]</li>
-<li>hyperkube-download.service<br>
+<li>hyperkube-download.service { Type=oneshot RemainAfterExit=true }<br>
+<code>ExecStart=/usr/bin/docker pull gcr.io/google_containers/hyperkube-amd64:v1.9.2</code><br>
+<code>ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube_v1.9.2.tar gcr.io/google_containers/hyperkube-amd64:v1.9.2</code><br>
 [active] [exited]</li>
-<li>hyperkube-import.service<br>
+<li>hyperkube-import.service { command: start Type=oneshot RemainAfterExit=true }<br>
+<code>ExecStart=/usr/bin/docker load --input /vagrant/artifacts/hyperkube_v1.9.2.tar</code><br>
 [inactive] [dead]</li>
-<li>kube-kubelet.service<br>
+<li>kube-kubelet.service { command: start Restart=on-failure ExecStart=...}<br>
 [inactive] [dead]</li>
 </ul>
 <p>内容</p>
@@ -919,6 +932,11 @@ write<span class="token punctuation">-</span>files
 <code>docker run --name archives-nginx -v /ansible/archives:/usr/share/nginx/html:ro -p 8080:80 -d nginx</code></p>
 <p>修改 <code>setup.tmpl</code><br>
 <code>KUB_URL=&quot;http://192.168.99.23/kubectl&quot;</code></p>
+<h6 class="mume-header" id="docker-registry">Docker Registry</h6>
+
+<p><code>docker run -d -v /data/docker/voldata/registry:/data -p 5000:5000 --restart=always --name registry registry:2</code></p>
+<p><code>gcr.io/google_containers/hyperkube-amd64:__RELEASE__</code><br>
+<code>wangwg2/hyperkube-amd64:__RELEASE__</code></p>
 <h6 class="mume-header" id="vagrant-%E8%99%9A%E6%9C%BA%E8%AE%BE%E7%BD%AEvagrantfile">Vagrant 虚机设置（<code>Vagrantfile</code>）</h6>
 
 <pre class="language-ruby"><span class="token comment" spellcheck="true"># 解决CPU不足</span>
@@ -976,8 +994,21 @@ CLUSTER_DNS_IP<span class="token operator">=</span><span class="token string">"1
 <span class="token function">sed</span> -i s/CLUSTER_DNS_IP/<span class="token variable">$CLUSTER_DNS_IP</span>/g -e s/CLUSTER_DOMAIN/<span class="token variable">$CLUSTER_DOMAIN</span>/g -e s?SERVICE_CIDR?<span class="token variable">$SERVICE_CIDR?g</span> <span class="token variable">$YAML</span>
 </pre>
 <hr>
-<h3 class="mume-header" id="%E6%96%87%E4%BB%B6">文件</h3>
+<h6 class="mume-header" id="coreos-%E6%96%87%E4%BB%B6">CoreOS 文件</h6>
 
+<pre class="language-">~/coredns-deployment.yaml
+~/kubectlsetup
+/etc/kubernetes/master-kubeconfig.yaml
+/etc/kubernetes/manifests/master-apiserver-rbac.yaml
+/etc/kubernetes/manifests/master-apiserver.yaml
+/etc/kubernetes/manifests/master-controller-manager.yaml
+/etc/kubernetes/manifests/master-proxy.yaml
+/etc/kubernetes/manifests/master-scheduler.yaml
+/var/lib/coreos-vagrant/vagrantfile-user-data
+/tmp/make-certs.sh
+/tmp/openssl.cnf
+</pre>
+<hr>
 <h6 class="mume-header" id="vagrantfile">Vagrantfile</h6>
 
 <pre class="language-ruby {as=&quot;ruby&quot;}"><span class="token comment" spellcheck="true"># -*- mode: ruby -*-</span>
@@ -1064,7 +1095,9 @@ required_plugins<span class="token punctuation">.</span><span class="token keywo
 <span class="token constant">USE_DOCKERCFG</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'USE_DOCKERCFG'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token keyword">false</span>
 <span class="token constant">DOCKERCFG</span> <span class="token operator">=</span> <span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">expand_path</span><span class="token punctuation">(</span><span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'DOCKERCFG'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">"~/.dockercfg"</span><span class="token punctuation">)</span>
 
-<span class="token constant">DOCKER_OPTIONS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'DOCKER_OPTIONS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">''</span>
+<span class="token comment" spellcheck="true"># DOCKER_OPTIONS = ENV['DOCKER_OPTIONS'] || ''</span>
+<span class="token constant">DOCKER_OPTIONS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'DOCKER_OPTIONS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'--registry-mirror=https://4ue5z1dy.mirror.aliyuncs.com'</span>
+
 
 <span class="token constant">KUBERNETES_VERSION</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'KUBERNETES_VERSION'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'1.9.2'</span>
 
@@ -1107,7 +1140,7 @@ upstream <span class="token operator">=</span> <span class="token string">"http:
 <span class="token constant">GUI</span> <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'GUI'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>to_s<span class="token punctuation">.</span>downcase <span class="token operator">==</span> <span class="token string">'true'</span><span class="token punctuation">)</span>
 <span class="token constant">USE_KUBE_UI</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'USE_KUBE_UI'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token keyword">false</span>
 
-<span class="token constant">BOX_TIMEOUT_COUNT</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'BOX_TIMEOUT_COUNT'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">50</span>
+<span class="token constant">BOX_TIMEOUT_COUNT</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'BOX_TIMEOUT_COUNT'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">100</span>
 
 <span class="token keyword">if</span> enable_proxy
   <span class="token constant">HTTP_PROXY</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'HTTP_PROXY'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'http_proxy'</span><span class="token punctuation">]</span>
@@ -1255,7 +1288,7 @@ upstream <span class="token operator">=</span> <span class="token string">"http:
           <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"coredns"</span>
                 <span class="token comment" spellcheck="true"># system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/plugins/dns/coredns/coredns.yaml.sed > #{__dir__}/temp/coredns-deployment.yaml"</span>
                 system <span class="token string">"cp <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/coredns.yaml.sed <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
-                system <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/deploy.sh 10.100.0.10/24 <span class="token interpolation"><span class="token delimiter tag">#{</span>DNS_DOMAIN<span class="token delimiter tag">}</span></span> <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>                
+                system <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/deploy.sh 10.100.0.10/24 <span class="token interpolation"><span class="token delimiter tag">#{</span>DNS_DOMAIN<span class="token delimiter tag">}</span></span> <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
                <span class="token keyword">end</span>
           <span class="token keyword">end</span>
         <span class="token keyword">end</span>
@@ -1629,46 +1662,13 @@ upstream <span class="token operator">=</span> <span class="token string">"http:
 <span class="token keyword">end</span>
 
 </pre>
-<h6 class="mume-header" id="bakcoredns-deploymentyaml">bak/coredns-deployment.yaml</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\coredns-deployment.yaml&apos;</pre>  
-<h6 class="mume-header" id="bakkubectlsetup">bak/kubectlsetup</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\kubectlsetup&apos;</pre>  
-<h6 class="mume-header" id="baketckubernetesmaster-kubeconfigyaml">bak/etc/kubernetes/master-kubeconfig.yaml</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\etc\kubernetes\master-kubeconfig.yaml&apos;</pre>  
-<h6 class="mume-header" id="baketckubernetesmaster-kubeconfigyaml-1">bak/etc/kubernetes/master-kubeconfig.yaml</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\etc\kubernetes\manifests\master-apiserver-rbac.yaml&apos;</pre>  
-<h6 class="mume-header" id="baketckubernetesmaster-apiserveryaml">bak/etc/kubernetes/master-apiserver.yaml</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\etc\kubernetes\manifests\master-.yaml&apos;</pre>  
-<h6 class="mume-header" id="baketckubernetesmaster-controller-manageryaml">bak/etc/kubernetes/master-controller-manager.yaml</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\etc\kubernetes\manifests\master-controller-manager.yaml&apos;</pre>  
-<h6 class="mume-header" id="baketckubernetesmaster-proxyyaml">bak/etc/kubernetes/master-proxy.yaml</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\etc\kubernetes\manifests\master-.yaml&apos;</pre>  
-<h6 class="mume-header" id="baketckubernetesmaster-scheduleryaml">bak/etc/kubernetes/master-scheduler.yaml</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\etc\kubernetes\manifests\master-scheduler.yaml&apos;</pre>  
-<h6 class="mume-header" id="bakvarlibcoreos-vagrantvagrantfile-user-data">bak/var/lib/coreos-vagrant/vagrantfile-user-data</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\var\lib\coreos-vagrant\vagrantfile-user-data&apos;</pre>  
-<h6 class="mume-header" id="baktmpmake-certssh">bak/tmp/make-certs.sh</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\tmp\make-certs.sh&apos;</pre>  
-<h6 class="mume-header" id="baktmpopensslcnf">bak/tmp/openssl.cnf</h6>
-
-<pre class="language-text">Error: ENOENT: no such file or directory, open &apos;d:\projects\vagrant\k8s-coreos\bak\tmp\openssl.cnf&apos;</pre>  
 
       </div>
       <div class="md-sidebar-toc"><ul>
 <li><a href="#kubernetes-vagrant-coreos-cluster">kubernetes-vagrant-coreos-cluster</a>
 <ul>
 <li><a href="#%E4%BF%AE%E6%94%B9%E8%AF%B4%E6%98%8E">修改说明</a><br>
-* <a href="#%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E">文件说明</a><br>
+* <a href="#update-log">Update Log</a><br>
 * <a href="#vagrantfile-%E8%A7%A3%E6%9E%90">Vagrantfile 解析</a><br>
 * <a href="#vagrantfile-%E8%A7%A3%E6%9E%90-%E6%A0%B8%E5%BF%83%E9%83%A8%E5%88%86%E7%BB%93%E6%9E%84">Vagrantfile 解析 - 核心部分结构</a><br>
 * <a href="#%E4%BF%AE%E6%94%B9%E6%96%87%E4%BB%B6%E5%88%97%E8%A1%A8">修改文件列表</a><br>
@@ -1677,22 +1677,12 @@ upstream <span class="token operator">=</span> <span class="token string">"http:
 * <a href="#vagrantfile-user-data">vagrantfile-user-data</a><br>
 * <a href="#after-up-resume">after [:up, :resume]</a><br>
 * <a href="#kubectl-%E4%B8%8B%E8%BD%BD%E6%85%A2-setuptmpl">kubectl 下载慢 （<code>setup.tmpl</code>）</a><br>
+* <a href="#docker-registry">Docker Registry</a><br>
 * <a href="#vagrant-%E8%99%9A%E6%9C%BA%E8%AE%BE%E7%BD%AEvagrantfile">Vagrant 虚机设置（<code>Vagrantfile</code>）</a><br>
 * <a href="#docker_optionsvagrantfile">DOCKER_OPTIONS（<code>Vagrantfile</code>）</a><br>
-* <a href="#window-shell-%E9%87%8D%E5%AE%9A%E5%90%91%E9%97%AE%E9%A2%98-vagrantfile-pluginsdnscorednsdeploysh">Window shell 重定向问题 （<code>Vagrantfile</code> + <code>plugins/dns/coredns/deploy.sh</code>）</a></li>
-<li><a href="#%E6%96%87%E4%BB%B6">文件</a><br>
-* <a href="#vagrantfile">Vagrantfile</a><br>
-* <a href="#bakcoredns-deploymentyaml">bak/coredns-deployment.yaml</a><br>
-* <a href="#bakkubectlsetup">bak/kubectlsetup</a><br>
-* <a href="#baketckubernetesmaster-kubeconfigyaml">bak/etc/kubernetes/master-kubeconfig.yaml</a><br>
-* <a href="#baketckubernetesmaster-kubeconfigyaml-1">bak/etc/kubernetes/master-kubeconfig.yaml</a><br>
-* <a href="#baketckubernetesmaster-apiserveryaml">bak/etc/kubernetes/master-apiserver.yaml</a><br>
-* <a href="#baketckubernetesmaster-controller-manageryaml">bak/etc/kubernetes/master-controller-manager.yaml</a><br>
-* <a href="#baketckubernetesmaster-proxyyaml">bak/etc/kubernetes/master-proxy.yaml</a><br>
-* <a href="#baketckubernetesmaster-scheduleryaml">bak/etc/kubernetes/master-scheduler.yaml</a><br>
-* <a href="#bakvarlibcoreos-vagrantvagrantfile-user-data">bak/var/lib/coreos-vagrant/vagrantfile-user-data</a><br>
-* <a href="#baktmpmake-certssh">bak/tmp/make-certs.sh</a><br>
-* <a href="#baktmpopensslcnf">bak/tmp/openssl.cnf</a></li>
+* <a href="#window-shell-%E9%87%8D%E5%AE%9A%E5%90%91%E9%97%AE%E9%A2%98-vagrantfile-pluginsdnscorednsdeploysh">Window shell 重定向问题 （<code>Vagrantfile</code> + <code>plugins/dns/coredns/deploy.sh</code>）</a><br>
+* <a href="#coreos-%E6%96%87%E4%BB%B6">CoreOS 文件</a><br>
+* <a href="#vagrantfile">Vagrantfile</a></li>
 </ul>
 </li>
 </ul>

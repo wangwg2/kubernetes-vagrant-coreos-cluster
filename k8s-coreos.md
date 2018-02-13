@@ -718,35 +718,21 @@ sed -i s/CLUSTER_DNS_IP/$CLUSTER_DNS_IP/g -e s/CLUSTER_DOMAIN/$CLUSTER_DOMAIN/g 
 
 
 -----
-### 文件
+###### CoreOS 文件
+```
+~/coredns-deployment.yaml
+~/kubectlsetup
+/etc/kubernetes/master-kubeconfig.yaml
+/etc/kubernetes/manifests/master-apiserver-rbac.yaml
+/etc/kubernetes/manifests/master-apiserver.yaml
+/etc/kubernetes/manifests/master-controller-manager.yaml
+/etc/kubernetes/manifests/master-proxy.yaml
+/etc/kubernetes/manifests/master-scheduler.yaml
+/var/lib/coreos-vagrant/vagrantfile-user-data
+/tmp/make-certs.sh
+/tmp/openssl.cnf
+```
 
+---
 ###### Vagrantfile
 @import "Vagrantfile" {as=ruby}
-
-###### bak/coredns-deployment.yaml
-@import "bak/coredns-deployment.yaml"
-
-###### bak/kubectlsetup
-@import "bak/kubectlsetup" {as=bash}
-
-###### bak/etc/kubernetes/master-kubeconfig.yaml
-@import "bak/etc/kubernetes/master-kubeconfig.yaml"
-
-###### bak/etc/kubernetes/master-kubeconfig.yaml
-@import "bak/etc/kubernetes/manifests/master-apiserver-rbac.yaml"
-###### bak/etc/kubernetes/master-apiserver.yaml
-@import "bak/etc/kubernetes/manifests/master-.yaml"
-###### bak/etc/kubernetes/master-controller-manager.yaml
-@import "bak/etc/kubernetes/manifests/master-controller-manager.yaml"
-###### bak/etc/kubernetes/master-proxy.yaml
-@import "bak/etc/kubernetes/manifests/master-.yaml"
-###### bak/etc/kubernetes/master-scheduler.yaml
-@import "bak/etc/kubernetes/manifests/master-scheduler.yaml"
-
-###### bak/var/lib/coreos-vagrant/vagrantfile-user-data
-@import "bak/var/lib/coreos-vagrant/vagrantfile-user-data" {as=yaml}
-
-###### bak/tmp/make-certs.sh
-@import "bak/tmp/make-certs.sh" 
-###### bak/tmp/openssl.cnf
-@import "bak/tmp/openssl.cnf" {as=ini}

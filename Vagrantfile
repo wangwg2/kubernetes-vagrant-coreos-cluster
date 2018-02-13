@@ -127,7 +127,7 @@ SERIAL_LOGGING = (ENV['SERIAL_LOGGING'].to_s.downcase == 'true')
 GUI = (ENV['GUI'].to_s.downcase == 'true')
 USE_KUBE_UI = ENV['USE_KUBE_UI'] || false
 
-BOX_TIMEOUT_COUNT = ENV['BOX_TIMEOUT_COUNT'] || 50
+BOX_TIMEOUT_COUNT = ENV['BOX_TIMEOUT_COUNT'] || 100
 
 if enable_proxy
   HTTP_PROXY = ENV['HTTP_PROXY'] || ENV['http_proxy']
@@ -275,8 +275,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
           else if DNS_PROVIDER == "coredns"
                 # system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/plugins/dns/coredns/coredns.yaml.sed > #{__dir__}/temp/coredns-deployment.yaml"
                 system "cp #{__dir__}/plugins/dns/coredns/coredns.yaml.sed #{__dir__}/temp/coredns-deployment.yaml"
-                system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/temp/coredns-deployment.yaml"                
-               end
+                system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/temp/coredns-deployment.yaml"
+              end
           end
         end
 

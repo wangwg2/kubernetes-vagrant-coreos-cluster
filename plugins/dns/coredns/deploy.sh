@@ -4,9 +4,8 @@
 
 SERVICE_CIDR=$1
 CLUSTER_DOMAIN=${2:-cluster.local}
-# YAML_TEMPLATE=${3:-`pwd`/coredns.yaml.sed}
-# YAML=${4:-`pwd`/coredns.yaml}
-YAML=${3:-`pwd`/coredns.yaml}
+YAML_TEMPLATE=${3:-`pwd`/coredns.yaml.sed}
+YAML=${4:-`pwd`/coredns.yaml}
 
 
 if [[ -z $SERVICE_CIDR ]]; then
@@ -17,4 +16,4 @@ fi
 CLUSTER_DNS_IP="10.100.0.10"
 
 # sed -e s/CLUSTER_DNS_IP/$CLUSTER_DNS_IP/g -e s/CLUSTER_DOMAIN/$CLUSTER_DOMAIN/g -e s?SERVICE_CIDR?$SERVICE_CIDR?g $YAML_TEMPLATE
-sed -i s/CLUSTER_DNS_IP/$CLUSTER_DNS_IP/g -e s/CLUSTER_DOMAIN/$CLUSTER_DOMAIN/g -e s?SERVICE_CIDR?$SERVICE_CIDR?g $YAML
+sed -i -e s/CLUSTER_DNS_IP/$CLUSTER_DNS_IP/g -e s/CLUSTER_DOMAIN/$CLUSTER_DOMAIN/g -e s?SERVICE_CIDR?$SERVICE_CIDR?g $YAML_TEMPLATE
