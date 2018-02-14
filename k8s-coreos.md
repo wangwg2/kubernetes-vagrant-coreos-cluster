@@ -2,6 +2,8 @@
 Kubernetes cluster (for testing purposes) made easy with Vagrant and CoreOS.
 参考 [pires/kubernetes-vagrant-coreos-cluster](https://github.com/pires/kubernetes-vagrant-coreos-cluster).
 
+[Deploy Kubernetes: The Ultimate Guide](https://platform9.com/docs/deploy-kubernetes-the-ultimate-guide/)
+
 ---
 ### 修改说明
 ###### Update Log
