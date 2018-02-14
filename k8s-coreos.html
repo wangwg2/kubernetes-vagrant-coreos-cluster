@@ -232,6 +232,7 @@ html body code {
 
 <p>Kubernetes cluster (for testing purposes) made easy with Vagrant and CoreOS.<br>
 参考 <a href="https://github.com/pires/kubernetes-vagrant-coreos-cluster">pires/kubernetes-vagrant-coreos-cluster</a>.</p>
+<hr>
 <h3 class="mume-header" id="%E4%BF%AE%E6%94%B9%E8%AF%B4%E6%98%8E">修改说明</h3>
 
 <h6 class="mume-header" id="update-log">Update Log</h6>
@@ -239,8 +240,8 @@ html body code {
 <p>Update 1: 为网路环境修改</p>
 <ul>
 <li>新增说明文档： <code>k8s-coreos.md</code>、<code>k8s-coreos.html</code></li>
-<li>修改 <code>Vagrantfile</code>, 修改 <code>MASTER_CPUS</code> / <code>BASE_IP_ADDR</code> 设置 与 windows 重定向问题</li>
-<li>修改 <code>plugins/dns/coredns/deploy.sh</code>, 解决 windows 下脚本重定向输出问题（结合<code>Vagrantfile</code>修改）。</li>
+<li>修改 <code>Vagrantfile</code>, 修改 <code>MASTER_CPUS</code> / <code>BASE_IP_ADDR</code> 设置 与 windows 重定向问题.<br>
+不使用 <code>plugins/dns/coredns/deploy.sh</code>, 解决 windows 下脚本重定向输出问题</li>
 <li><code>setup.tmpl</code> 文件, 修改 “<code>KUB_URL=</code>” 为本地下载地址</li>
 <li>以下文件中 “<code>gcr.io/google_containers/hyperkube-amd64</code>” 修改为 “<code>wangwg2/hyperkube-amd64</code>”<br>
 <code>master.yaml</code><br>
@@ -250,15 +251,90 @@ html body code {
 <code>manifests/master-proxy.yaml</code><br>
 <code>manifests/master-scheduler.yaml</code><br>
 <code>manifests/node-proxy.yaml</code></li>
-<li><code>hyperkube kubelet</code> 会 pull 镜像 <code>gcr.io/google_containers/pause-amd64:3.0</code>。<br>
-解决镜像被墙问题，改为 <code>wangwg2/pause-amd64:3.0</code>。<br>
+<li>修改 <code>master.yaml</code>, 解决 <code>gcr.io/google_containers/pause-amd64:3.0</code> 被墙<br>
 为 <code>\hyperkube kubelet</code> 增加 <code>--pod-infra-container-image=wangwg2/pause-amd64:3.0 \</code></li>
 <li><code>docker logs -f container_name</code> 查看容器日志分析问题。</li>
 </ul>
-<h6 class="mume-header" id="vagrantfile-%E8%A7%A3%E6%9E%90">Vagrantfile 解析</h6>
+<h6 class="mume-header" id="vagrant-%E8%99%9A%E6%9C%BA%E8%AE%BE%E7%BD%AE">Vagrant 虚机设置</h6>
 
+<p><code>Vagrantfile</code> 文件</p>
+<pre class="language-ruby"><span class="token comment" spellcheck="true"># 解决CPU不足</span>
+<span class="token constant">MASTER_CPUS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'MASTER_CPUS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">1</span>
+<span class="token constant">NODE_CPUS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'NODE_CPUS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">1</span>
+<span class="token comment" spellcheck="true"># IP网络段</span>
+<span class="token constant">BASE_IP_ADDR</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'BASE_IP_ADDR'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">"192.168.99"</span>
+</pre>
+<h6 class="mume-header" id="window-sh-%E9%87%8D%E5%AE%9A%E5%90%91%E9%97%AE%E9%A2%98">Window sh 重定向问题</h6>
+
+<p>修改 <code>Vagrantfile</code>, 不使用 <code>plugins/dns/coredns/deploy.sh</code><br>
+<code>Vagrantfile</code></p>
+<pre class="language-ruby">  <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"kube-dns"</span>
+    <span class="token comment" spellcheck="true"># create dns-deployment.yaml file</span>
+    dnsFile <span class="token operator">=</span> <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/dns-deployment.yaml"</span>
+    <span class="token comment" spellcheck="true"># .....</span>
+  <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"coredns"</span>
+      <span class="token comment" spellcheck="true"># --- 修改前 ---</span>
+      system <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/deploy.sh 10.100.0.10/24 <span class="token interpolation"><span class="token delimiter tag">#{</span>DNS_DOMAIN<span class="token delimiter tag">}</span></span> <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/coredns.yaml.sed > <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
+      <span class="token comment" spellcheck="true"># --- 修改后 ---</span>
+      system <span class="token string">"cp <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/coredns.yaml.sed <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
+      system <span class="token string">"sed -i -e s/CLUSTER_DNS_IP/10.100.0.10/g -e s/CLUSTER_DOMAIN/<span class="token interpolation"><span class="token delimiter tag">#{</span>DNS_DOMAIN<span class="token delimiter tag">}</span></span>/g -e s?SERVICE_CIDR?10.100.0.10\/24?g <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
+    <span class="token keyword">end</span>
+  <span class="token keyword">end</span>
+</pre>
+<h6 class="mume-header" id="kubectl-%E4%B8%8B%E8%BD%BD%E6%85%A2">kubectl 下载慢</h6>
+
+<p><code>setup.tmpl</code> 文件<br>
+解决 <code>bukectl</code>下载慢问题。预先下载到指定目录。<br>
+<code>https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl</code></p>
+<p>启动下载服务器：(192.168.99.23)<br>
+<code>docker run --name archives-nginx -v /ansible/archives:/usr/share/nginx/html:ro -p 8080:80 -d nginx</code></p>
+<p>修改 <code>setup.tmpl</code><br>
+<code>KUB_URL=&quot;http://192.168.99.23/kubectl&quot;</code></p>
+<h6 class="mume-header" id="docker-registry">Docker Registry</h6>
+
+<p><code>docker run -d -v /data/docker/voldata/registry:/data -p 5000:5000 --restart=always --name registry registry:2</code></p>
+<p><code>gcr.io/google_containers/hyperkube-amd64:__RELEASE__</code><br>
+<code>wangwg2/hyperkube-amd64:__RELEASE__</code></p>
+<h6 class="mume-header" id="docker_options">DOCKER_OPTIONS</h6>
+
+<p><code>Vagrantfile</code> 文件</p>
+<pre class="language-ruby"><span class="token constant">DOCKER_OPTIONS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'DOCKER_OPTIONS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'--registry-mirror=https://4ue5z1dy.mirror.aliyuncs.com'</span>
+</pre>
+<h6 class="mume-header" id="masteryml">master.yml</h6>
+
+<p>hyperkube kubelet 会 pull 镜像 <code>gcr.io/google_containers/pause-amd64:3.0</code>。<br>
+解决镜像被墙问题，改为 wangwg2/pause-amd64:3.0。<br>
+增加 <code>--pod-infra-container-image=wangwg2/pause-amd64:3.0 \</code></p>
+<pre class="language-yaml">ExecStart=/usr/bin/docker run \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>volume=/<span class="token punctuation">:</span>/rootfs<span class="token punctuation">:</span>ro \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>volume=/sys<span class="token punctuation">:</span>/sys<span class="token punctuation">:</span>ro \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>volume=/etc/kubernetes<span class="token punctuation">:</span>/etc/kubernetes<span class="token punctuation">:</span>ro \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>volume=/var/lib/docker/<span class="token punctuation">:</span>/var/lib/docker<span class="token punctuation">:</span>rw \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>volume=/var/lib/kubelet/<span class="token punctuation">:</span>/var/lib/kubelet<span class="token punctuation">:</span>rw \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>volume=/var/run<span class="token punctuation">:</span>/var/run<span class="token punctuation">:</span>rw \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>net=host \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>pid=host \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>privileged=true \
+  <span class="token punctuation">-</span><span class="token punctuation">-</span>name=kubelet \
+  <span class="token punctuation">-</span>d \
+  wangwg2/hyperkube<span class="token punctuation">-</span>amd64<span class="token punctuation">:</span>__RELEASE__ \
+    /hyperkube kubelet \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>address=$private_ipv4 \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>network<span class="token punctuation">-</span>plugin= \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>pod<span class="token punctuation">-</span>infra<span class="token punctuation">-</span>container<span class="token punctuation">-</span>image=wangwg2/pause<span class="token punctuation">-</span>amd64<span class="token punctuation">:</span>3.0 \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>register<span class="token punctuation">-</span>schedulable=false \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>allow<span class="token punctuation">-</span>privileged=true \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>pod<span class="token punctuation">-</span>manifest<span class="token punctuation">-</span>path=/etc/kubernetes/manifests \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>hostname<span class="token punctuation">-</span>override=$public_ipv4 \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>cluster_dns=10.100.0.10 \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>cluster_domain=__DNS_DOMAIN__ \
+    <span class="token punctuation">-</span><span class="token punctuation">-</span>kubeconfig=/etc/kubernetes/master<span class="token punctuation">-</span>kubeconfig.yaml
+</pre>
 <hr>
-<p>预备</p>
+<h3 class="mume-header" id="vagrantfile-%E8%A7%A3%E6%9E%90">Vagrantfile 解析</h3>
+
+<h6 class="mume-header" id="%E9%A2%84%E5%A4%87">预备</h6>
+
 <pre class="language-ruby"><span class="token comment" spellcheck="true"># -*- mode: ruby -*-</span>
 <span class="token comment" spellcheck="true"># vi: set ft=ruby :</span>
 
@@ -294,8 +370,7 @@ html body code {
 <span class="token comment" spellcheck="true"># REMOVE_VAGRANTFILE_USER_DATA_BEFORE_HALT = false</span>
 <span class="token comment" spellcheck="true"># MOUNT_POINTS        = synced_folders.yaml</span>
 </pre>
-<hr>
-<h6 class="mume-header" id="vagrantfile-%E8%A7%A3%E6%9E%90-%E6%A0%B8%E5%BF%83%E9%83%A8%E5%88%86%E7%BB%93%E6%9E%84">Vagrantfile 解析 - 核心部分结构</h6>
+<h6 class="mume-header" id="%E6%A0%B8%E5%BF%83%E9%83%A8%E5%88%86%E7%BB%93%E6%9E%84">核心部分结构</h6>
 
 <pre class="language-ruby">config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>define vmName <span class="token operator">=</span> hostname <span class="token keyword">do</span> <span class="token operator">|</span>kHost<span class="token operator">|</span>
   kHost<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>hostname <span class="token operator">=</span> vmName
@@ -434,129 +509,6 @@ html body code {
 
 <span class="token keyword">end</span>
 </pre>
-<hr>
-<h6 class="mume-header" id="%E4%BF%AE%E6%94%B9%E6%96%87%E4%BB%B6%E5%88%97%E8%A1%A8">修改文件列表</h6>
-
-<ul>
-<li><code>setup.tmpl</code><br>
-解决 <code>bukectl</code>下载慢问题。预先下载</li>
-<li><code>Vagrantfile</code><br>
-Vagrant 虚机 CPU / IP 设置与 windows 重定向问题。</li>
-<li><code>plugins/dns/coredns/deploy.sh</code><br>
-Windows 重定向问题。</li>
-</ul>
-<pre class="language-">master.yaml
-kubernetes-coreos.md
-kubernetes-coreos-docs.md
-Vagrantfile
-plugins/dns/coredns/coredns-deployment.yaml
-plugins/dns/coredns/deploy.sh
-plugins/dns/kube-dns/dns-deployment-rbac.yaml.tmpl
-plugins/dns/kube-dns/dns-deployment.yaml.tmpl
-</pre>
-<p>master.yaml(vagrantfile-user-data)</p>
-<pre class="language-">rpcbind.service              loaded active running RPC Bind
-rpc-statd.service            loaded active running NFS status monitor for NFSv2/3 locking.
-etcd-member.service          loaded active running etcd
-flanneld.service             loaded active running flannel - Network fabric for containers (System Application Container)
-docker.service               loaded active running Docker Application Container Engine
-early-docker.service
-kube-certs.service
-hyperkube-download.service   loaded active exited  Download Hyperkube Docker image
-hyperkube-import.service
-kube-kubelet.service
-</pre>
-<pre class="language-bash"><span class="token comment" spellcheck="true"># Installing kubectl for the Kubernetes version we just bootstrapped</span>
-<span class="token function">sudo</span> -u core /bin/sh /home/core/kubectlsetup <span class="token function">install</span>
-<span class="token comment" spellcheck="true"># set cluster</span>
-/opt/bin/kubectl config set-cluster default-cluster --server<span class="token operator">=</span>https://192.168.99.101 --certificate-authority<span class="token operator">=</span>/vagrant/artifacts/tls/ca.pem
-/opt/bin/kubectl config set-credentials default-admin --certificate-authority<span class="token operator">=</span>/vagrant/artifacts/tls/ca.pem --client-key<span class="token operator">=</span>/vagrant/artifacts/tls/admin-key.pem --client-certificate<span class="token operator">=</span>/vagrant/artifacts/tls/admin.pem
-/opt/bin/kubectl config set-context local --cluster<span class="token operator">=</span>default-cluster --user<span class="token operator">=</span>default-admin
-/opt/bin/kubectl config use-context local
-<span class="token comment" spellcheck="true"># Configuring Kubernetes DNS...</span>
-/opt/bin/kubectl create -f /home/core/coredns-deployment.yaml
-</pre>
-<hr>
-<pre class="language-tmpl">#!/bin/bash
-set -e
-
-PLATFORM=&quot;$(uname -s | tr &apos;[:upper:]&apos; &apos;[:lower:]&apos;)&quot;
-KUBERNETES_VERSION=__KUBERNETES_VERSION__
-# KUB_URL=&quot;https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/${PLATFORM}/amd64/kubectl&quot;
-KUB_URL=&quot;http://192.168.99.23:8080/kubectl&quot;
-
-scream () {
-    cat &lt;&lt;&lt; &quot;$@&quot; 1&gt;&amp;2
-    exit 1
-}
-
-case &quot;$PLATFORM&quot; in
-  darwin|linux)
-    targetDir=&quot;/usr/local/bin&quot;
-    if [[ -r /etc/os-release ]]; then
-      . /etc/os-release
-      if [[ $ID = coreos ]]; then
-        targetDir=&quot;/opt/bin&quot;
-        unlink $HOME/.bash_profile
-        cp /usr/share/skel/.bash_profile $HOME/.bash_profile
-        chmod 775 $HOME/.bash_profile
-      fi
-    fi
-    ;;
-  *)
-    scream &quot;Unknown or unsupported platform: ${PLATFORM}&quot;
-    ;;
-esac
-
-if [[ &quot;$#&quot; -eq 1 &amp;&amp; &quot;$1&quot; == &quot;install&quot;  ]] ; then
-  doinstall=&quot;true&quot;
-  if [ -x ${targetDir}/kubectl ]; then
-    installedversion=`${targetDir}/kubectl version | awk -F&quot;:&quot; &apos;{print $5}&apos; | head -n1 | awk -F&quot;,&quot; {&apos;print $1&apos;} | tr -d &quot;\&quot;&quot; | tr -d &quot;v&quot;`
-    if [ &quot;$installedversion&quot; == &quot;${KUBERNETES_VERSION}&quot; ]; then
-      echo &quot;kubectl already installed in version &apos;$installedversion&apos;. Skipping install.&quot;
-      doinstall=&quot;false&quot;
-    else
-      echo &quot;kubectl installed in version &apos;$installedversion&apos; instead of &apos;${KUBERNETES_VERSION}&apos;. Reinstalling.&quot;
-    fi
-  fi
-
-  if [ &quot;$doinstall&quot; == &quot;true&quot; ]; then 
-    echo &quot;Downloading and installing ${PLATFORM} version of &apos;kubectl&apos; v${KUBERNETES_VERSION} into ${targetDir}. This may take a couple minutes, depending on your internet speed..&quot;
-    [ -d ${targetDir} ] || sudo mkdir -p ${targetDir}
-    sudo -E curl -s -k -L -o ${targetDir}/kubectl &quot;${KUB_URL}&quot;
-    [ -x ${targetDir}/kubectl ] || sudo chmod +x ${targetDir}/kubectl
-  fi
-
-  # use sed to replace current values, if any; create profile file if not exists
-  touch -a $HOME/.bash_profile
-  echo &quot;Configuring environment..&quot;
-  __PROXY_LINE__if ! grep -q &apos;export NO_PROXY&apos; $HOME/.bash_profile ; then
-  __PROXY_LINE__  echo &quot;export NO_PROXY=__NO_PROXY__&quot; &gt;&gt; $HOME/.bash_profile
-  __PROXY_LINE__  echo &quot;export no_proxy=__NO_PROXY__&quot; &gt;&gt; $HOME/.bash_profile
-  __PROXY_LINE__else
-  __PROXY_LINE__  sed -i&apos;*&apos; &apos;s|.*export NO_PROXY.*|export NO_PROXY=__NO_PROXY__|&apos; $HOME/.bash_profile
-  __PROXY_LINE__  sed -i&apos;*&apos; &apos;s|.*export no_proxy.*|export no_proxy=__NO_PROXY__|&apos; $HOME/.bash_profile
-  __PROXY_LINE__fi
-  __PROXY_LINE__export NO_PROXY=__NO_PROXY__
-  __PROXY_LINE__export no_proxy=__NO_PROXY__
-elif [[ &quot;$#&quot; -eq 1 &amp;&amp; &quot;$1&quot; == &quot;uninstall&quot;  ]] ; then
-  echo &quot;Removing &apos;kubectl&apos; v${KUBERNETES_VERSION}..&quot;
-  [ -f ${targetDir}/kubectl ] &amp;&amp; sudo rm -f ${targetDir}/kubectl
-else
-  echo &quot;Usage: ./setup (install|uninstall)&quot;
-fi
-
-</pre>
-<hr>
-<h6 class="mume-header" id="docker-images">docker images</h6>
-
-<pre class="language-">manifests/master-apiserver-rbac.yaml
-manifests/master-apiserver.yaml
-manifests/master-controller-manager.yaml
-manifests/master-proxy.yaml
-manifests/master-scheduler.yaml
-master.yaml/node.yaml
-</pre>
 <h6 class="mume-header" id="%E5%88%86%E9%98%B6%E6%AE%B5%E6%96%87%E4%BB%B6%E6%A3%80%E6%9F%A5">分阶段文件检查</h6>
 
 <ol>
@@ -586,6 +538,16 @@ temp/coredns-deployment.yaml</li>
 <li>after [:up, :resume]<br>
 <code>/home/core/kubectlsetup install</code></li>
 </ol>
+<hr>
+<h6 class="mume-header" id="docker-images">docker images</h6>
+
+<pre class="language-">manifests/master-apiserver-rbac.yaml
+manifests/master-apiserver.yaml
+manifests/master-controller-manager.yaml
+manifests/master-proxy.yaml
+manifests/master-scheduler.yaml
+master.yaml/node.yaml
+</pre>
 <h6 class="mume-header" id="vagrantfile-user-data">vagrantfile-user-data</h6>
 
 <p>文件结构</p>
@@ -613,190 +575,42 @@ write<span class="token punctuation">-</span>files
     <span class="token key atrule">reboot-strategy</span><span class="token punctuation">:</span> off
 </pre>
 <ul>
-<li>rpcbind.service  {enable: true, command: start }<br>
+<li><code>rpcbind.service</code>  {enable: true, command: start }<br>
 [active] [running]</li>
-<li>rpc-statd.service {enable: true, command: start }<br>
+<li><code>rpc-statd.service</code> {enable: true, command: start }<br>
 [active] [running]</li>
-<li>etcd-member.service {Type=notify, Restart=always ExecStart=...}<br>
+<li><code>etcd-member.service</code> {Type=notify, Restart=always ExecStart=...}<br>
 [active] [running]</li>
-<li>flanneld.service { command: start }<br>
+<li><code>flanneld.service</code> { command: start }<br>
 [active] [running]</li>
-<li>docker.service { command: start }<br>
+<li><code>docker.service</code> { command: start }<br>
 [active] [running]</li>
-<li>early-docker.service<br>
+<li><code>early-docker.service</code><br>
 [--]</li>
-<li>kube-certs.service<br>
-{ command: start ExecStart=/tmp/make-certs.sh Type=oneshot RemainAfterExit=true }<br>
+<li><code>kube-certs.service</code><br>
+{ <code>command: start ExecStart=/tmp/make-certs.sh Type=oneshot RemainAfterExit=true</code> }<br>
 [active] [dead]</li>
-<li>hyperkube-download.service { Type=oneshot RemainAfterExit=true }<br>
+<li><code>hyperkube-download.service</code> { Type=oneshot RemainAfterExit=true }<br>
 <code>ExecStart=/usr/bin/docker pull gcr.io/google_containers/hyperkube-amd64:v1.9.2</code><br>
 <code>ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube_v1.9.2.tar gcr.io/google_containers/hyperkube-amd64:v1.9.2</code><br>
 [active] [exited]</li>
-<li>hyperkube-import.service { command: start Type=oneshot RemainAfterExit=true }<br>
+<li><code>hyperkube-import.service</code> { command: start Type=oneshot RemainAfterExit=true }<br>
 <code>ExecStart=/usr/bin/docker load --input /vagrant/artifacts/hyperkube_v1.9.2.tar</code><br>
 [inactive] [dead]</li>
-<li>kube-kubelet.service { command: start Restart=on-failure ExecStart=...}<br>
+<li><code>kube-kubelet.service</code> { command: start Restart=on-failure ExecStart=...}<br>
 [inactive] [dead]</li>
 </ul>
-<p>内容</p>
-<pre class="language-yaml"><span class="token comment" spellcheck="true">#cloud-config</span>
-
-<span class="token punctuation">---</span>
-<span class="token key atrule">write-files</span><span class="token punctuation">:</span>
-  <span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /etc/conf.d/nfs
-    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token string">'0644'</span>
-    <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-      OPTS_RPC_MOUNTD=""</span>
-  <span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /opt/bin/wupiao
-    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token string">'0755'</span>
-    <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-      #!/bin/bash
-      # [w]ait [u]ntil [p]ort [i]s [a]ctually [o]pen
-      [ -n "$1" ] &amp;&amp; \
-        until curl -o /dev/null -sIf http://${1}; do \
-          sleep 1 &amp;&amp; echo .;
-        done;
-      exit $?</span>
-
-<span class="token key atrule">coreos</span><span class="token punctuation">:</span>
-  <span class="token key atrule">flannel</span><span class="token punctuation">:</span>
-    <span class="token key atrule">interface</span><span class="token punctuation">:</span> $public_ipv4
-  <span class="token key atrule">units</span><span class="token punctuation">:</span>
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpcbind.service
-      <span class="token key atrule">enable</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
-      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpc<span class="token punctuation">-</span>statd.service
-      <span class="token key atrule">enable</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
-      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> etcd<span class="token punctuation">-</span>member.service
-      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
-      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-        [Unit]
-        Description=etcd
-        Documentation=https://github.com/coreos/etcd
-        [Service]
-        Environment='ETCD_IMAGE_TAG=v3.1.8'
-        Environment='ETCD_DATA_DIR=/var/lib/etcd'
-        Environment='ETCD_USER=etcd'
-        Type=notify
-        Restart=always
-        RestartSec=5s
-        LimitNOFILE=40000
-        TimeoutStartSec=0
-        ExecStart=/usr/lib/coreos/etcd-wrapper --name master \
-            --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
-            --advertise-client-urls http://$public_ipv4:2379,http://$public_ipv4:4001 \
-            --listen-peer-urls http://$private_ipv4:2380,http://$private_ipv4:7001 \
-            --initial-advertise-peer-urls http://$private_ipv4:2380 \
-            --initial-cluster master=http://192.168.99.101:2380
-        [Install]
-        WantedBy=multi-user.target</span>
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> flanneld.service
-      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
-      <span class="token key atrule">drop-ins</span><span class="token punctuation">:</span>
-        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 50<span class="token punctuation">-</span>network<span class="token punctuation">-</span>config.conf
-          <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-            [Unit]
-            Requires=etcd-member.service
-            [Service]
-            ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config '{"Network":"10.244.0.0/16", "Backend": {"Type": "host-gw"}}'</span>
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> docker.service
-      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
-      <span class="token key atrule">drop-ins</span><span class="token punctuation">:</span>
-        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 51<span class="token punctuation">-</span>docker<span class="token punctuation">-</span>mirror.conf
-        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 40<span class="token punctuation">-</span>flannel.conf
-          <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-            [Unit]
-            Requires=flanneld.service
-            After=flanneld.service</span>
-        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 50<span class="token punctuation">-</span>docker<span class="token punctuation">-</span>options.conf
-          <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-            [Service]
-            Environment='DOCKER_OPTS=--storage-driver=overlay2 '</span>
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> early<span class="token punctuation">-</span>docker.service
-      <span class="token key atrule">drop-ins</span><span class="token punctuation">:</span>
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>certs.service
-      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
-      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-        [Unit]
-        Description=Generate Kubernetes API Server certificates
-        ConditionPathExists=/tmp/make-certs.sh
-        Requires=network-online.target
-        After=network-online.target
-        [Service]
-        ExecStartPre=-/usr/sbin/groupadd -r kube-cert
-        ExecStartPre=/usr/bin/chmod 755 /tmp/make-certs.sh
-        ExecStart=/tmp/make-certs.sh
-        Type=oneshot
-        RemainAfterExit=true</span>
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> hyperkube<span class="token punctuation">-</span>download.service
-      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
-      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-        [Unit]
-        Description=Download Hyperkube Docker image
-        Requires=docker.service
-        After=docker.service
-        ConditionPathExists=!/vagrant/artifacts/hyperkube_v1.9.2.tar
-        [Service]
-        ExecStart=/usr/bin/docker pull gcr.io/google_containers/hyperkube-amd64:v1.9.2
-        ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube_v1.9.2.tar gcr.io/google_containers/hyperkube-amd64:v1.9.2
-        Type=oneshot
-        RemainAfterExit=true</span>
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> hyperkube<span class="token punctuation">-</span>import.service
-      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
-      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-        [Unit]
-        Description=Import Hyperkube Docker image
-        Requires=docker.service
-        After=docker.service
-        ConditionPathExists=/vagrant/artifacts/hyperkube_v1.9.2.tar
-        [Service]
-        ExecStart=/usr/bin/docker load --input /vagrant/artifacts/hyperkube_v1.9.2.tar
-        Type=oneshot
-        RemainAfterExit=true</span>
-    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>kubelet.service
-      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
-      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
-        [Unit]
-        Description=Kubernetes Kubelet
-        Documentation=https://github.com/GoogleCloudPlatform/kubernetes
-        Requires=kube-certs.service
-        Wants=hyperkube-download.service hyperkube-import.service
-        After=kube-certs.service hyperkube-download.service hyperkube-import.service
-        [Service]
-        ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
-        ExecStartPre=-/usr/bin/docker rm -f kubelet
-        ExecStart=/usr/bin/docker run \
-          --volume=/:/rootfs:ro \
-          --volume=/sys:/sys:ro \
-          --volume=/etc/kubernetes:/etc/kubernetes:ro \
-          --volume=/var/lib/docker/:/var/lib/docker:rw \
-          --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
-          --volume=/var/run:/var/run:rw \
-          --net=host \
-          --pid=host \
-          --privileged=true \
-          --name=kubelet \
-          -d \
-          gcr.io/google_containers/hyperkube-amd64:v1.9.2 \
-            /hyperkube kubelet \
-            --address=$private_ipv4 \
-            --network-plugin= \
-            --register-schedulable=false \
-            --allow-privileged=true \
-            --pod-manifest-path=/etc/kubernetes/manifests \
-            --hostname-override=$public_ipv4 \
-            --cluster_dns=10.100.0.10 \
-            --cluster_domain=cluster.local \
-            --kubeconfig=/etc/kubernetes/master-kubeconfig.yaml
-        Restart=on-failure
-        RestartSec=10
-        WorkingDirectory=/root/
-        [Install]
-        WantedBy=multi-user.target</span>
-  <span class="token key atrule">update</span><span class="token punctuation">:</span>
-    <span class="token key atrule">group</span><span class="token punctuation">:</span> alpha
-    <span class="token key atrule">reboot-strategy</span><span class="token punctuation">:</span> off
+<p>master.yaml(vagrantfile-user-data)</p>
+<pre class="language-">rpcbind.service              loaded active running RPC Bind
+rpc-statd.service            loaded active running NFS status monitor for NFSv2/3 locking.
+etcd-member.service          loaded active running etcd
+flanneld.service             loaded active running flannel - Network fabric for containers (System Application Container)
+docker.service               loaded active running Docker Application Container Engine
+early-docker.service
+kube-certs.service
+hyperkube-download.service   loaded active exited  Download Hyperkube Docker image
+hyperkube-import.service
+kube-kubelet.service
 </pre>
 <h6 class="mume-header" id="after-up-resume">after [:up, :resume]</h6>
 
@@ -923,78 +737,19 @@ write<span class="token punctuation">-</span>files
 
 <span class="token keyword">end</span>
 </pre>
-<hr>
-<h6 class="mume-header" id="kubectl-%E4%B8%8B%E8%BD%BD%E6%85%A2-setuptmpl">kubectl 下载慢 （<code>setup.tmpl</code>）</h6>
-
-<p>解决 <code>bukectl</code>下载慢问题。预先下载到指定目录。<br>
-<code>https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl</code></p>
-<p>启动下载服务器：(192.168.99.23)<br>
-<code>docker run --name archives-nginx -v /ansible/archives:/usr/share/nginx/html:ro -p 8080:80 -d nginx</code></p>
-<p>修改 <code>setup.tmpl</code><br>
-<code>KUB_URL=&quot;http://192.168.99.23/kubectl&quot;</code></p>
-<h6 class="mume-header" id="docker-registry">Docker Registry</h6>
-
-<p><code>docker run -d -v /data/docker/voldata/registry:/data -p 5000:5000 --restart=always --name registry registry:2</code></p>
-<p><code>gcr.io/google_containers/hyperkube-amd64:__RELEASE__</code><br>
-<code>wangwg2/hyperkube-amd64:__RELEASE__</code></p>
-<h6 class="mume-header" id="vagrant-%E8%99%9A%E6%9C%BA%E8%AE%BE%E7%BD%AEvagrantfile">Vagrant 虚机设置（<code>Vagrantfile</code>）</h6>
-
-<pre class="language-ruby"><span class="token comment" spellcheck="true"># 解决CPU不足</span>
-<span class="token constant">MASTER_CPUS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'MASTER_CPUS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">1</span>
-<span class="token constant">NODE_CPUS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'NODE_CPUS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">1</span>
-<span class="token comment" spellcheck="true"># IP网络段</span>
-<span class="token constant">BASE_IP_ADDR</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'BASE_IP_ADDR'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">"192.168.99"</span>
-</pre>
-<h6 class="mume-header" id="docker_optionsvagrantfile">DOCKER_OPTIONS（<code>Vagrantfile</code>）</h6>
-
-<pre class="language-ruby"><span class="token constant">DOCKER_OPTIONS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'DOCKER_OPTIONS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'--registry-mirror=https://4ue5z1dy.mirror.aliyuncs.com'</span>
+<p>trigger.after [:up]</p>
+<pre class="language-bash"><span class="token comment" spellcheck="true"># Installing kubectl for the Kubernetes version we just bootstrapped</span>
+<span class="token function">sudo</span> -u core /bin/sh /home/core/kubectlsetup <span class="token function">install</span>
+<span class="token comment" spellcheck="true"># set cluster</span>
+/opt/bin/kubectl config set-cluster default-cluster --server<span class="token operator">=</span>https://192.168.99.101 --certificate-authority<span class="token operator">=</span>/vagrant/artifacts/tls/ca.pem
+/opt/bin/kubectl config set-credentials default-admin --certificate-authority<span class="token operator">=</span>/vagrant/artifacts/tls/ca.pem --client-key<span class="token operator">=</span>/vagrant/artifacts/tls/admin-key.pem --client-certificate<span class="token operator">=</span>/vagrant/artifacts/tls/admin.pem
+/opt/bin/kubectl config set-context local --cluster<span class="token operator">=</span>default-cluster --user<span class="token operator">=</span>default-admin
+/opt/bin/kubectl config use-context local
+<span class="token comment" spellcheck="true"># Configuring Kubernetes DNS...</span>
+/opt/bin/kubectl create -f /home/core/coredns-deployment.yaml
 </pre>
 <hr>
-<h6 class="mume-header" id="window-shell-%E9%87%8D%E5%AE%9A%E5%90%91%E9%97%AE%E9%A2%98-vagrantfile-pluginsdnscorednsdeploysh">Window shell 重定向问题 （<code>Vagrantfile</code> + <code>plugins/dns/coredns/deploy.sh</code>）</h6>
-
-<p><code>Vagrantfile</code></p>
-<pre class="language-ruby">  <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"kube-dns"</span>
-    <span class="token comment" spellcheck="true"># create dns-deployment.yaml file</span>
-    dnsFile <span class="token operator">=</span> <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/dns-deployment.yaml"</span>
-    <span class="token comment" spellcheck="true"># .....</span>
-  <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"coredns"</span>
-      <span class="token comment" spellcheck="true"># --- 修改前 ---</span>
-      system <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/deploy.sh 10.100.0.10/24 <span class="token interpolation"><span class="token delimiter tag">#{</span>DNS_DOMAIN<span class="token delimiter tag">}</span></span> <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/coredns.yaml.sed > <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
-      <span class="token comment" spellcheck="true"># --- 修改后 ---</span>
-      system <span class="token string">"cp <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/coredns.yaml.sed <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
-      system <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/deploy.sh 10.100.0.10/24 <span class="token interpolation"><span class="token delimiter tag">#{</span>DNS_DOMAIN<span class="token delimiter tag">}</span></span> <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
-    <span class="token keyword">end</span>
-  <span class="token keyword">end</span>
-</pre>
-<p><code>plugins/dns/coredns/deploy.sh</code></p>
-<pre class="language-bash"><span class="token shebang important">#!/bin/bash</span>
-
-<span class="token comment" spellcheck="true"># Deploys CoreDNS to a cluster currently running Kube-DNS.</span>
-<span class="token comment" spellcheck="true"># --- 修改前 ---</span>
-SERVICE_CIDR<span class="token operator">=</span><span class="token variable">$1</span>
-CLUSTER_DOMAIN<span class="token operator">=</span><span class="token variable">${2:-cluster.local}</span>
-YAML_TEMPLATE<span class="token operator">=</span>$<span class="token punctuation">{</span>3:-<span class="token variable"><span class="token variable">`</span><span class="token function">pwd</span><span class="token variable">`</span></span>/coredns.yaml.sed<span class="token punctuation">}</span>
-YAML<span class="token operator">=</span>$<span class="token punctuation">{</span>4:-<span class="token variable"><span class="token variable">`</span><span class="token function">pwd</span><span class="token variable">`</span></span>/coredns.yaml<span class="token punctuation">}</span>
-
-<span class="token comment" spellcheck="true"># --- 修改后 ---</span>
-SERVICE_CIDR<span class="token operator">=</span><span class="token variable">$1</span>
-CLUSTER_DOMAIN<span class="token operator">=</span><span class="token variable">${2:-cluster.local}</span>
-YAML<span class="token operator">=</span>$<span class="token punctuation">{</span>3:-<span class="token variable"><span class="token variable">`</span><span class="token function">pwd</span><span class="token variable">`</span></span>/coredns.yaml<span class="token punctuation">}</span>
-<span class="token comment" spellcheck="true"># --------------</span>
-
-<span class="token keyword">if</span> <span class="token punctuation">[</span><span class="token punctuation">[</span> -z <span class="token variable">$SERVICE_CIDR</span> <span class="token punctuation">]</span><span class="token punctuation">]</span><span class="token punctuation">;</span> <span class="token keyword">then</span>
-	<span class="token keyword">echo</span> <span class="token string">"Usage: <span class="token variable">$0</span> SERVICE-CIDR [ CLUSTER-DOMAIN ] [ YAML-TEMPLATE ] [ YAML ]"</span>
-	<span class="token keyword">exit</span> 1
-<span class="token keyword">fi</span>
-
-CLUSTER_DNS_IP<span class="token operator">=</span><span class="token string">"10.100.0.10"</span>
-<span class="token comment" spellcheck="true"># --- 修改前 ---</span>
-<span class="token function">sed</span> -e s/CLUSTER_DNS_IP/<span class="token variable">$CLUSTER_DNS_IP</span>/g -e s/CLUSTER_DOMAIN/<span class="token variable">$CLUSTER_DOMAIN</span>/g -e s?SERVICE_CIDR?<span class="token variable">$SERVICE_CIDR?g</span> <span class="token variable">$YAML_TEMPLATE</span>
-<span class="token comment" spellcheck="true"># --- 修改后 ---</span>
-<span class="token function">sed</span> -i s/CLUSTER_DNS_IP/<span class="token variable">$CLUSTER_DNS_IP</span>/g -e s/CLUSTER_DOMAIN/<span class="token variable">$CLUSTER_DOMAIN</span>/g -e s?SERVICE_CIDR?<span class="token variable">$SERVICE_CIDR?g</span> <span class="token variable">$YAML</span>
-</pre>
-<hr>
-<h6 class="mume-header" id="coreos-%E6%96%87%E4%BB%B6">CoreOS 文件</h6>
+<h6 class="mume-header" id="coreos-file-list">CoreOS File List</h6>
 
 <pre class="language-">~/coredns-deployment.yaml
 ~/kubectlsetup
@@ -1009,6 +764,8 @@ CLUSTER_DNS_IP<span class="token operator">=</span><span class="token string">"1
 /tmp/openssl.cnf
 </pre>
 <hr>
+<h3 class="mume-header" id="%E6%96%87%E4%BB%B6%E6%B8%85%E5%8D%95%E5%AE%BF%E4%B8%BB%E6%9C%BA">文件清单（宿主机）</h3>
+
 <h6 class="mume-header" id="vagrantfile">Vagrantfile</h6>
 
 <pre class="language-ruby {as=&quot;ruby&quot;}"><span class="token comment" spellcheck="true"># -*- mode: ruby -*-</span>
@@ -1288,8 +1045,8 @@ upstream <span class="token operator">=</span> <span class="token string">"http:
           <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"coredns"</span>
                 <span class="token comment" spellcheck="true"># system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/plugins/dns/coredns/coredns.yaml.sed > #{__dir__}/temp/coredns-deployment.yaml"</span>
                 system <span class="token string">"cp <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/coredns.yaml.sed <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
-                system <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/plugins/dns/coredns/deploy.sh 10.100.0.10/24 <span class="token interpolation"><span class="token delimiter tag">#{</span>DNS_DOMAIN<span class="token delimiter tag">}</span></span> <span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/coredns-deployment.yaml"</span>
-               <span class="token keyword">end</span>
+                system <span class="token string">"sed -i -e s/CLUSTER_DNS_IP/10.100.0.10/g -e s/CLUSTER_DOMAIN/<span class="token interpolation"><span class="token delimiter tag">#{</span>DNS_DOMAIN<span class="token delimiter tag">}</span></span>/g -e s?SERVICE_CIDR?10.100.0.10\/24?g temp/coredns-deployment.yaml"</span>
+              <span class="token keyword">end</span>
           <span class="token keyword">end</span>
         <span class="token keyword">end</span>
 
@@ -1662,6 +1419,410 @@ upstream <span class="token operator">=</span> <span class="token string">"http:
 <span class="token keyword">end</span>
 
 </pre>
+<h6 class="mume-header" id="masteryaml">master.yaml</h6>
+
+<pre class="language-yaml"><span class="token comment" spellcheck="true">#cloud-config</span>
+
+<span class="token punctuation">---</span>
+<span class="token key atrule">write-files</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /etc/conf.d/nfs
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token string">'0644'</span>
+    <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+      OPTS_RPC_MOUNTD=""</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /opt/bin/wupiao
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token string">'0755'</span>
+    <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+      #!/bin/bash
+      # [w]ait [u]ntil [p]ort [i]s [a]ctually [o]pen
+      [ -n "$1" ] &amp;&amp; \
+        until curl -o /dev/null -sIf http://${1}; do \
+          sleep 1 &amp;&amp; echo .;
+        done;
+      exit $?</span>
+
+<span class="token key atrule">coreos</span><span class="token punctuation">:</span>
+  <span class="token key atrule">flannel</span><span class="token punctuation">:</span>
+    <span class="token key atrule">interface</span><span class="token punctuation">:</span> $public_ipv4
+  <span class="token key atrule">units</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpcbind.service
+      <span class="token key atrule">enable</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpc<span class="token punctuation">-</span>statd.service
+      <span class="token key atrule">enable</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> etcd<span class="token punctuation">-</span>member.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+        [Unit]
+        Description=etcd
+        Documentation=https://github.com/coreos/etcd
+        [Service]
+        Environment='ETCD_IMAGE_TAG=v3.1.8'
+        Environment='ETCD_DATA_DIR=/var/lib/etcd'
+        Environment='ETCD_USER=etcd'
+        Type=notify
+        Restart=always
+        RestartSec=5s
+        LimitNOFILE=40000
+        TimeoutStartSec=0
+        ExecStart=/usr/lib/coreos/etcd-wrapper --name __NAME__ \
+            --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+            --advertise-client-urls http://$public_ipv4:2379,http://$public_ipv4:4001 \
+            --listen-peer-urls http://$private_ipv4:2380,http://$private_ipv4:7001 \
+            --initial-advertise-peer-urls http://$private_ipv4:2380 \
+            --initial-cluster __ETCD_SEED_CLUSTER__
+        [Install]
+        WantedBy=multi-user.target</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> flanneld.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">drop-ins</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 50<span class="token punctuation">-</span>network<span class="token punctuation">-</span>config.conf
+          <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            [Unit]
+            Requires=etcd-member.service
+            [Service]
+            ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config '{"Network":"10.244.0.0/16", "Backend": {"Type": "host-gw"}}'</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> docker.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">drop-ins</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 51<span class="token punctuation">-</span>docker<span class="token punctuation">-</span>mirror.conf
+        <span class="token punctuation">-</span> <span class="token key atrule">__PROXY_LINE__name</span><span class="token punctuation">:</span> http<span class="token punctuation">-</span>proxy.conf
+          <span class="token key atrule">__PROXY_LINE__content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            __PROXY_LINE__[Service]
+            __PROXY_LINE__EnvironmentFile=/etc/environment</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 40<span class="token punctuation">-</span>flannel.conf
+          <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            [Unit]
+            Requires=flanneld.service
+            After=flanneld.service</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 50<span class="token punctuation">-</span>docker<span class="token punctuation">-</span>options.conf
+          <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            [Service]
+            Environment='DOCKER_OPTS=--storage-driver=overlay2 __DOCKER_OPTIONS__'</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> early<span class="token punctuation">-</span>docker.service
+      <span class="token key atrule">drop-ins</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">__PROXY_LINE__name</span><span class="token punctuation">:</span> http<span class="token punctuation">-</span>proxy.conf
+          <span class="token key atrule">__PROXY_LINE__content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            __PROXY_LINE__[Service]
+            __PROXY_LINE__EnvironmentFile=/etc/environment</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>certs.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+        [Unit]
+        Description=Generate Kubernetes API Server certificates
+        ConditionPathExists=/tmp/make-certs.sh
+        Requires=network-online.target
+        After=network-online.target
+        [Service]
+        ExecStartPre=-/usr/sbin/groupadd -r kube-cert
+        ExecStartPre=/usr/bin/chmod 755 /tmp/make-certs.sh
+        ExecStart=/tmp/make-certs.sh
+        Type=oneshot
+        RemainAfterExit=true</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> hyperkube<span class="token punctuation">-</span>download.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+        [Unit]
+        Description=Download Hyperkube Docker image
+        Requires=docker.service
+        After=docker.service
+        ConditionPathExists=!/vagrant/artifacts/hyperkube___RELEASE__.tar
+        [Service]
+        # ExecStart=/usr/bin/docker pull gcr.io/google_containers/hyperkube-amd64:__RELEASE__
+        # ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube___RELEASE__.tar gcr.io/google_containers/hyperkube-amd64:__RELEASE__
+        ExecStart=/usr/bin/docker pull wangwg2/hyperkube-amd64:__RELEASE__
+        ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube___RELEASE__.tar wangwg2/hyperkube-amd64:__RELEASE__
+        Type=oneshot
+        RemainAfterExit=true</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> hyperkube<span class="token punctuation">-</span>import.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+        [Unit]
+        Description=Import Hyperkube Docker image
+        Requires=docker.service
+        After=docker.service
+        ConditionPathExists=/vagrant/artifacts/hyperkube___RELEASE__.tar
+        [Service]
+        ExecStart=/usr/bin/docker load --input /vagrant/artifacts/hyperkube___RELEASE__.tar
+        Type=oneshot
+        RemainAfterExit=true</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>kubelet.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+        [Unit]
+        Description=Kubernetes Kubelet
+        Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+        Requires=kube-certs.service
+        Wants=hyperkube-download.service hyperkube-import.service
+        After=kube-certs.service hyperkube-download.service hyperkube-import.service
+        [Service]
+        ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
+        ExecStartPre=-/usr/bin/docker rm -f kubelet
+        ExecStart=/usr/bin/docker run \
+          --volume=/:/rootfs:ro \
+          --volume=/sys:/sys:ro \
+          --volume=/etc/kubernetes:/etc/kubernetes:ro \
+          --volume=/var/lib/docker/:/var/lib/docker:rw \
+          --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
+          --volume=/var/run:/var/run:rw \
+          --net=host \
+          --pid=host \
+          --privileged=true \
+          --name=kubelet \
+          -d \
+          wangwg2/hyperkube-amd64:__RELEASE__ \
+            /hyperkube kubelet \
+            --address=$private_ipv4 \
+            --network-plugin= \
+            --pod-infra-container-image=wangwg2/pause-amd64:3.0 \
+            --register-schedulable=false \
+            --allow-privileged=true \
+            --pod-manifest-path=/etc/kubernetes/manifests \
+            --hostname-override=$public_ipv4 \
+            --cluster_dns=10.100.0.10 \
+            --cluster_domain=__DNS_DOMAIN__ \
+            --kubeconfig=/etc/kubernetes/master-kubeconfig.yaml
+        Restart=on-failure
+        RestartSec=10
+        WorkingDirectory=/root/
+        [Install]
+        WantedBy=multi-user.target</span>
+  <span class="token key atrule">update</span><span class="token punctuation">:</span>
+    <span class="token key atrule">group</span><span class="token punctuation">:</span> __CHANNEL__
+    <span class="token key atrule">reboot-strategy</span><span class="token punctuation">:</span> off
+
+</pre>
+<h6 class="mume-header" id="nodeyaml">node.yaml</h6>
+
+<pre class="language-yaml"><span class="token comment" spellcheck="true">#cloud-config</span>
+
+<span class="token punctuation">---</span>
+<span class="token key atrule">write-files</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /etc/conf.d/nfs
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token string">'0644'</span>
+    <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+      OPTS_RPC_MOUNTD=""</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /opt/bin/wupiao
+    <span class="token key atrule">permissions</span><span class="token punctuation">:</span> <span class="token string">'0755'</span>
+    <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+      #!/bin/bash
+      # [w]ait [u]ntil [p]ort [i]s [a]ctually [o]pen
+      [ -n "$1" ] &amp;&amp; \
+        until curl -o /dev/null -sIf http://${1}; do \
+          sleep 1 &amp;&amp; echo .;
+        done;
+      exit $?</span>
+
+<span class="token key atrule">coreos</span><span class="token punctuation">:</span>
+  <span class="token key atrule">flannel</span><span class="token punctuation">:</span>
+    <span class="token key atrule">interface</span><span class="token punctuation">:</span> $public_ipv4
+  <span class="token key atrule">units</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpcbind.service
+      <span class="token key atrule">enable</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpc<span class="token punctuation">-</span>statd.service
+      <span class="token key atrule">enable</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> etcd<span class="token punctuation">-</span>member.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+        [Unit]
+        Description=etcd
+        Documentation=https://github.com/coreos/etcd
+        [Service]
+        Environment='ETCD_IMAGE_TAG=v3.1.8'
+        Environment='ETCD_DATA_DIR=/var/lib/etcd'
+        Environment='ETCD_USER=etcd'
+        Type=notify
+        Restart=always
+        RestartSec=5s
+        LimitNOFILE=40000
+        TimeoutStartSec=0
+        ExecStart=/usr/lib/coreos/etcd-wrapper --name __NAME__ \
+            --proxy on \
+            --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+            --advertise-client-urls http://$public_ipv4:2379,http://$public_ipv4:4001 \
+            --listen-peer-urls http://$private_ipv4:2380,http://$private_ipv4:7001 \
+            --initial-advertise-peer-urls http://$private_ipv4:2380 \
+            --initial-cluster __ETCD_SEED_CLUSTER__
+        [Install]
+        WantedBy=multi-user.target</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> flanneld.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">drop-ins</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 50<span class="token punctuation">-</span>network<span class="token punctuation">-</span>config.conf
+          <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            [Unit]
+            Requires=etcd-member.service
+            [Service]
+            ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config '{"Network":"10.244.0.0/16", "Backend": {"Type": "host-gw"}}'</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> docker.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">drop-ins</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 51<span class="token punctuation">-</span>docker<span class="token punctuation">-</span>mirror.conf
+        <span class="token punctuation">-</span> <span class="token key atrule">__PROXY_LINE__name</span><span class="token punctuation">:</span> http<span class="token punctuation">-</span>proxy.conf
+          <span class="token key atrule">__PROXY_LINE__content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            __PROXY_LINE__[Service]
+            __PROXY_LINE__EnvironmentFile=/etc/environment</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 40<span class="token punctuation">-</span>flannel.conf
+          <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            [Unit]
+            Requires=flanneld.service
+            After=flanneld.service</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> 50<span class="token punctuation">-</span>docker<span class="token punctuation">-</span>options.conf
+          <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            [Service]
+            Environment='DOCKER_OPTS=__DOCKER_OPTIONS__'</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> early<span class="token punctuation">-</span>docker.service
+      <span class="token key atrule">drop-ins</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> <span class="token key atrule">__PROXY_LINE__name</span><span class="token punctuation">:</span> http<span class="token punctuation">-</span>proxy.conf
+          <span class="token key atrule">__PROXY_LINE__content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+            __PROXY_LINE__[Service]
+            __PROXY_LINE__EnvironmentFile=/etc/environment</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>certs.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+        [Unit]
+        Description=Generate Kubernetes Node certificates
+        ConditionPathExists=/tmp/make-certs.sh
+        Requires=network-online.target
+        After=network-online.target
+        [Service]
+        ExecStartPre=-/usr/sbin/groupadd -r kube-cert
+        ExecStartPre=/usr/bin/chmod 755 /tmp/make-certs.sh
+        ExecStart=/tmp/make-certs.sh
+        Type=oneshot
+        RemainAfterExit=true</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> hyperkube<span class="token punctuation">-</span>import.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+        [Unit]
+        Description=Import Hyperkube Docker image
+        Requires=docker.service
+        After=docker.service
+        ConditionPathExists=/vagrant/artifacts/hyperkube___RELEASE__.tar
+        [Service]
+        ExecStart=/usr/bin/docker load --input /vagrant/artifacts/hyperkube___RELEASE__.tar
+        Type=oneshot
+        RemainAfterExit=true</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>kubelet.service
+      <span class="token key atrule">command</span><span class="token punctuation">:</span> start
+      <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+        [Unit]
+        Description=Kubernetes Kubelet
+        Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+        Requires=hyperkube-import.service kube-certs.service
+        After=hyperkube-import.service kube-certs.service
+        [Service]
+        ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
+        ExecStartPre=-/usr/bin/docker rm -f kubelet
+        ExecStart=/usr/bin/docker run \
+          --volume=/:/rootfs:ro \
+          --volume=/sys:/sys:ro \
+          --volume=/etc/kubernetes:/etc/kubernetes:ro \
+          --volume=/var/lib/docker/:/var/lib/docker:rw \
+          --volume=/var/lib/kubelet/:/var/lib/kubelet:shared \
+          --volume=/var/run:/var/run:rw \
+          --net=host \
+          --pid=host \
+          --privileged=true \
+          --name=kubelet \
+          -d \
+          wangwg2/hyperkube-amd64:__RELEASE__ \
+            /hyperkube kubelet \
+            --containerized \
+            --address=$private_ipv4 \
+            --network-plugin= \
+            --allow-privileged=true \
+            --pod-manifest-path=/etc/kubernetes/manifests \
+            --hostname-override=$public_ipv4 \
+            --cluster_dns=10.100.0.10 \
+            --cluster_domain=__DNS_DOMAIN__ \
+            --kubeconfig=/etc/kubernetes/node-kubeconfig.yaml \
+            --tls-cert-file=/etc/kubernetes/ssl/node.pem \
+            --tls-private-key-file=/etc/kubernetes/ssl/node-key.pem
+        Restart=on-failure
+        RestartSec=10
+        WorkingDirectory=/root/
+        [Install]
+        WantedBy=multi-user.target</span>
+  <span class="token key atrule">update</span><span class="token punctuation">:</span>
+    <span class="token key atrule">group</span><span class="token punctuation">:</span> __CHANNEL__
+    <span class="token key atrule">reboot-strategy</span><span class="token punctuation">:</span> off
+
+</pre>
+<h6 class="mume-header" id="setuptmpl">setup.tmpl</h6>
+
+<pre class="language-bash {as=&quot;bash&quot;}"><span class="token shebang important">#!/bin/bash</span>
+<span class="token keyword">set</span> -e
+
+PLATFORM<span class="token operator">=</span><span class="token string">"<span class="token variable"><span class="token variable">$(</span><span class="token function">uname</span> -s <span class="token operator">|</span> <span class="token function">tr</span> '<span class="token punctuation">[</span>:upper:<span class="token punctuation">]</span>' '<span class="token punctuation">[</span>:lower:<span class="token punctuation">]</span>'<span class="token variable">)</span></span>"</span>
+KUBERNETES_VERSION<span class="token operator">=</span>__KUBERNETES_VERSION__
+<span class="token comment" spellcheck="true"># KUB_URL="https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/${PLATFORM}/amd64/kubectl"</span>
+KUB_URL<span class="token operator">=</span><span class="token string">"http://192.168.99.23:8080/kubectl"</span>
+
+scream <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token function">cat</span> <span class="token operator">&lt;&lt;&lt;</span> <span class="token string">"<span class="token variable">$@</span>"</span> 1<span class="token operator">></span><span class="token operator">&amp;</span>2
+    <span class="token keyword">exit</span> 1
+<span class="token punctuation">}</span>
+
+<span class="token keyword">case</span> <span class="token string">"<span class="token variable">$PLATFORM</span>"</span> <span class="token keyword">in</span>
+  darwin<span class="token operator">|</span>linux<span class="token punctuation">)</span>
+    targetDir<span class="token operator">=</span><span class="token string">"/usr/local/bin"</span>
+    <span class="token keyword">if</span> <span class="token punctuation">[</span><span class="token punctuation">[</span> -r /etc/os-release <span class="token punctuation">]</span><span class="token punctuation">]</span><span class="token punctuation">;</span> <span class="token keyword">then</span>
+      <span class="token keyword">.</span> /etc/os-release
+      <span class="token keyword">if</span> <span class="token punctuation">[</span><span class="token punctuation">[</span> <span class="token variable">$ID</span> <span class="token operator">=</span> coreos <span class="token punctuation">]</span><span class="token punctuation">]</span><span class="token punctuation">;</span> <span class="token keyword">then</span>
+        targetDir<span class="token operator">=</span><span class="token string">"/opt/bin"</span>
+        unlink <span class="token variable">$HOME</span>/.bash_profile
+        <span class="token function">cp</span> /usr/share/skel/.bash_profile <span class="token variable">$HOME</span>/.bash_profile
+        <span class="token function">chmod</span> 775 <span class="token variable">$HOME</span>/.bash_profile
+      <span class="token keyword">fi</span>
+    <span class="token keyword">fi</span>
+    <span class="token punctuation">;</span><span class="token punctuation">;</span>
+  *<span class="token punctuation">)</span>
+    scream <span class="token string">"Unknown or unsupported platform: <span class="token variable">${PLATFORM}</span>"</span>
+    <span class="token punctuation">;</span><span class="token punctuation">;</span>
+esac
+
+<span class="token keyword">if</span> <span class="token punctuation">[</span><span class="token punctuation">[</span> <span class="token string">"<span class="token variable">$#</span>"</span> -eq 1 <span class="token operator">&amp;&amp;</span> <span class="token string">"<span class="token variable">$1</span>"</span> <span class="token operator">==</span> <span class="token string">"install"</span>  <span class="token punctuation">]</span><span class="token punctuation">]</span> <span class="token punctuation">;</span> <span class="token keyword">then</span>
+  doinstall<span class="token operator">=</span><span class="token string">"true"</span>
+  <span class="token keyword">if</span> <span class="token punctuation">[</span> -x <span class="token variable">${targetDir}</span>/kubectl <span class="token punctuation">]</span><span class="token punctuation">;</span> <span class="token keyword">then</span>
+    installedversion<span class="token operator">=</span>`<span class="token variable">${targetDir}</span>/kubectl version <span class="token operator">|</span> <span class="token function">awk</span> -F<span class="token string">":"</span> <span class="token string">'{print <span class="token variable">$5</span>}'</span> <span class="token operator">|</span> <span class="token function">head</span> -n1 <span class="token operator">|</span> <span class="token function">awk</span> -F<span class="token string">","</span> <span class="token punctuation">{</span><span class="token string">'print <span class="token variable">$1</span>'</span><span class="token punctuation">}</span> <span class="token operator">|</span> <span class="token function">tr</span> -d <span class="token string">"\""</span> <span class="token operator">|</span> <span class="token function">tr</span> -d <span class="token string">"v"</span>`
+    <span class="token keyword">if</span> <span class="token punctuation">[</span> <span class="token string">"<span class="token variable">$installedversion</span>"</span> <span class="token operator">==</span> <span class="token string">"<span class="token variable">${KUBERNETES_VERSION}</span>"</span> <span class="token punctuation">]</span><span class="token punctuation">;</span> <span class="token keyword">then</span>
+      <span class="token keyword">echo</span> <span class="token string">"kubectl already installed in version '<span class="token variable">$installedversion</span>'. Skipping install."</span>
+      doinstall<span class="token operator">=</span><span class="token string">"false"</span>
+    <span class="token keyword">else</span>
+      <span class="token keyword">echo</span> <span class="token string">"kubectl installed in version '<span class="token variable">$installedversion</span>' instead of '<span class="token variable">${KUBERNETES_VERSION}</span>'. Reinstalling."</span>
+    <span class="token keyword">fi</span>
+  <span class="token keyword">fi</span>
+
+  <span class="token keyword">if</span> <span class="token punctuation">[</span> <span class="token string">"<span class="token variable">$doinstall</span>"</span> <span class="token operator">==</span> <span class="token string">"true"</span> <span class="token punctuation">]</span><span class="token punctuation">;</span> <span class="token keyword">then</span> 
+    <span class="token keyword">echo</span> <span class="token string">"Downloading and installing <span class="token variable">${PLATFORM}</span> version of 'kubectl' v<span class="token variable">${KUBERNETES_VERSION}</span> into <span class="token variable">${targetDir}</span>. This may take a couple minutes, depending on your internet speed.."</span>
+    <span class="token punctuation">[</span> -d <span class="token variable">${targetDir}</span> <span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token function">sudo</span> <span class="token function">mkdir</span> -p <span class="token variable">${targetDir}</span>
+    <span class="token function">sudo</span> -E curl -s -k -L -o <span class="token variable">${targetDir}</span>/kubectl <span class="token string">"<span class="token variable">${KUB_URL}</span>"</span>
+    <span class="token punctuation">[</span> -x <span class="token variable">${targetDir}</span>/kubectl <span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token function">sudo</span> <span class="token function">chmod</span> +x <span class="token variable">${targetDir}</span>/kubectl
+  <span class="token keyword">fi</span>
+
+  <span class="token comment" spellcheck="true"># use sed to replace current values, if any; create profile file if not exists</span>
+  <span class="token function">touch</span> -a <span class="token variable">$HOME</span>/.bash_profile
+  <span class="token keyword">echo</span> <span class="token string">"Configuring environment.."</span>
+  __PROXY_LINE__if <span class="token operator">!</span> <span class="token function">grep</span> -q <span class="token string">'export NO_PROXY'</span> <span class="token variable">$HOME</span>/.bash_profile <span class="token punctuation">;</span> <span class="token keyword">then</span>
+  __PROXY_LINE__  <span class="token keyword">echo</span> <span class="token string">"export NO_PROXY=__NO_PROXY__"</span> <span class="token operator">>></span> <span class="token variable">$HOME</span>/.bash_profile
+  __PROXY_LINE__  <span class="token keyword">echo</span> <span class="token string">"export no_proxy=__NO_PROXY__"</span> <span class="token operator">>></span> <span class="token variable">$HOME</span>/.bash_profile
+  __PROXY_LINE__else
+  __PROXY_LINE__  <span class="token function">sed</span> -i<span class="token string">'*'</span> <span class="token string">'s|.*export NO_PROXY.*|export NO_PROXY=__NO_PROXY__|'</span> <span class="token variable">$HOME</span>/.bash_profile
+  __PROXY_LINE__  <span class="token function">sed</span> -i<span class="token string">'*'</span> <span class="token string">'s|.*export no_proxy.*|export no_proxy=__NO_PROXY__|'</span> <span class="token variable">$HOME</span>/.bash_profile
+  __PROXY_LINE__fi
+  __PROXY_LINE__export NO_PROXY<span class="token operator">=</span>__NO_PROXY__
+  __PROXY_LINE__export no_proxy<span class="token operator">=</span>__NO_PROXY__
+<span class="token keyword">elif</span> <span class="token punctuation">[</span><span class="token punctuation">[</span> <span class="token string">"<span class="token variable">$#</span>"</span> -eq 1 <span class="token operator">&amp;&amp;</span> <span class="token string">"<span class="token variable">$1</span>"</span> <span class="token operator">==</span> <span class="token string">"uninstall"</span>  <span class="token punctuation">]</span><span class="token punctuation">]</span> <span class="token punctuation">;</span> <span class="token keyword">then</span>
+  <span class="token keyword">echo</span> <span class="token string">"Removing 'kubectl' v<span class="token variable">${KUBERNETES_VERSION}</span>.."</span>
+  <span class="token punctuation">[</span> -f <span class="token variable">${targetDir}</span>/kubectl <span class="token punctuation">]</span> <span class="token operator">&amp;&amp;</span> <span class="token function">sudo</span> <span class="token function">rm</span> -f <span class="token variable">${targetDir}</span>/kubectl
+<span class="token keyword">else</span>
+  <span class="token keyword">echo</span> <span class="token string">"Usage: ./setup (install|uninstall)"</span>
+<span class="token keyword">fi</span>
+
+</pre>
 
       </div>
       <div class="md-sidebar-toc"><ul>
@@ -1669,20 +1830,25 @@ upstream <span class="token operator">=</span> <span class="token string">"http:
 <ul>
 <li><a href="#%E4%BF%AE%E6%94%B9%E8%AF%B4%E6%98%8E">修改说明</a><br>
 * <a href="#update-log">Update Log</a><br>
-* <a href="#vagrantfile-%E8%A7%A3%E6%9E%90">Vagrantfile 解析</a><br>
-* <a href="#vagrantfile-%E8%A7%A3%E6%9E%90-%E6%A0%B8%E5%BF%83%E9%83%A8%E5%88%86%E7%BB%93%E6%9E%84">Vagrantfile 解析 - 核心部分结构</a><br>
-* <a href="#%E4%BF%AE%E6%94%B9%E6%96%87%E4%BB%B6%E5%88%97%E8%A1%A8">修改文件列表</a><br>
-* <a href="#docker-images">docker images</a><br>
+* <a href="#vagrant-%E8%99%9A%E6%9C%BA%E8%AE%BE%E7%BD%AE">Vagrant 虚机设置</a><br>
+* <a href="#window-sh-%E9%87%8D%E5%AE%9A%E5%90%91%E9%97%AE%E9%A2%98">Window sh 重定向问题</a><br>
+* <a href="#kubectl-%E4%B8%8B%E8%BD%BD%E6%85%A2">kubectl 下载慢</a><br>
+* <a href="#docker-registry">Docker Registry</a><br>
+* <a href="#docker_options">DOCKER_OPTIONS</a><br>
+* <a href="#masteryml">master.yml</a></li>
+<li><a href="#vagrantfile-%E8%A7%A3%E6%9E%90">Vagrantfile 解析</a><br>
+* <a href="#%E9%A2%84%E5%A4%87">预备</a><br>
+* <a href="#%E6%A0%B8%E5%BF%83%E9%83%A8%E5%88%86%E7%BB%93%E6%9E%84">核心部分结构</a><br>
 * <a href="#%E5%88%86%E9%98%B6%E6%AE%B5%E6%96%87%E4%BB%B6%E6%A3%80%E6%9F%A5">分阶段文件检查</a><br>
+* <a href="#docker-images">docker images</a><br>
 * <a href="#vagrantfile-user-data">vagrantfile-user-data</a><br>
 * <a href="#after-up-resume">after [:up, :resume]</a><br>
-* <a href="#kubectl-%E4%B8%8B%E8%BD%BD%E6%85%A2-setuptmpl">kubectl 下载慢 （<code>setup.tmpl</code>）</a><br>
-* <a href="#docker-registry">Docker Registry</a><br>
-* <a href="#vagrant-%E8%99%9A%E6%9C%BA%E8%AE%BE%E7%BD%AEvagrantfile">Vagrant 虚机设置（<code>Vagrantfile</code>）</a><br>
-* <a href="#docker_optionsvagrantfile">DOCKER_OPTIONS（<code>Vagrantfile</code>）</a><br>
-* <a href="#window-shell-%E9%87%8D%E5%AE%9A%E5%90%91%E9%97%AE%E9%A2%98-vagrantfile-pluginsdnscorednsdeploysh">Window shell 重定向问题 （<code>Vagrantfile</code> + <code>plugins/dns/coredns/deploy.sh</code>）</a><br>
-* <a href="#coreos-%E6%96%87%E4%BB%B6">CoreOS 文件</a><br>
-* <a href="#vagrantfile">Vagrantfile</a></li>
+* <a href="#coreos-file-list">CoreOS File List</a></li>
+<li><a href="#%E6%96%87%E4%BB%B6%E6%B8%85%E5%8D%95%E5%AE%BF%E4%B8%BB%E6%9C%BA">文件清单（宿主机）</a><br>
+* <a href="#vagrantfile">Vagrantfile</a><br>
+* <a href="#masteryaml">master.yaml</a><br>
+* <a href="#nodeyaml">node.yaml</a><br>
+* <a href="#setuptmpl">setup.tmpl</a></li>
 </ul>
 </li>
 </ul>

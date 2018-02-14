@@ -275,7 +275,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
           else if DNS_PROVIDER == "coredns"
                 # system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/plugins/dns/coredns/coredns.yaml.sed > #{__dir__}/temp/coredns-deployment.yaml"
                 system "cp #{__dir__}/plugins/dns/coredns/coredns.yaml.sed #{__dir__}/temp/coredns-deployment.yaml"
-                system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/temp/coredns-deployment.yaml"
+                system "sed -i -e s/CLUSTER_DNS_IP/10.100.0.10/g -e s/CLUSTER_DOMAIN/#{DNS_DOMAIN}/g -e s?SERVICE_CIDR?10.100.0.10\/24?g temp/coredns-deployment.yaml"
               end
           end
         end
