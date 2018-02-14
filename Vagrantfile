@@ -127,7 +127,7 @@ SERIAL_LOGGING = (ENV['SERIAL_LOGGING'].to_s.downcase == 'true')
 GUI = (ENV['GUI'].to_s.downcase == 'true')
 USE_KUBE_UI = ENV['USE_KUBE_UI'] || false
 
-BOX_TIMEOUT_COUNT = ENV['BOX_TIMEOUT_COUNT'] || 100
+BOX_TIMEOUT_COUNT = ENV['BOX_TIMEOUT_COUNT'] || 50
 
 if enable_proxy
   HTTP_PROXY = ENV['HTTP_PROXY'] || ENV['http_proxy']
