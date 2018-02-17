@@ -109,8 +109,8 @@ ExecStart=/usr/bin/docker run \
 
 ---
 ### Vagrantfile 解析
-###### 1. 预备 （模块，插件， 定义变量）
-代码
+###### Vagrantfile (1)
+预备 （模块，插件， 定义变量）
 ```ruby
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
@@ -291,8 +291,8 @@ MOUNT_POINTS = YAML::load_file(File.join(File.dirname(__FILE__), "synced_folders
 # MOUNT_POINTS        = synced_folders.yaml
 ```
 
-###### 2. Vagrant.configure (1)
-代码
+###### Vagrantfile (2)
+Vagrant.configure
 ```ruby
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # always use host timezone in VMs
@@ -375,7 +375,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 end  
 ```
 
-###### 3. Vagrant.configure (2) - config.vm.define
+###### Vagrantfile (3)
+Vagrant.configure - config.vm.define
 ```ruby
 config.vm.define vmName = hostname do |kHost|
   kHost.vm.hostname = vmName
@@ -405,167 +406,71 @@ config.vm.define vmName = hostname do |kHost|
 
       # create setup file
       setupFile = "#{__dir__}/temp/setup"
-      # find and replace kubernetes version and master IP in setup file
-      setupData = File.read("setup.tmpl")
-      setupData = setupData.gsub("__KUBERNETES_VERSION__", KUBERNETES_VERSION);
-      setupData = setupData.gsub("__MASTER_IP__", MASTER_IP);
-      if enable_proxy
-        # remove __PROXY_LINE__ flag and set __NO_PROXY__
-        setupData = setupData.gsub("__PROXY_LINE__", "");
-        setupData = setupData.gsub("__NO_PROXY__", NO_PROXY);
-      else
-        # remove lines that start with __PROXY_LINE__
-        setupData = setupData.gsub(/^\s*__PROXY_LINE__.*$\n/, "");
-      end
-      # write new setup data to setup file
-      File.open(setupFile, "wb") do |f|
-        f.write(setupData)
-      end
-
-      # give setup file executable permissions
-      system "chmod +x temp/setup"
+      # ## create temp/setup 
 
       if DNS_PROVIDER == "kube-dns"
-          # create dns-deployment.yaml file
-          dnsFile = "#{__dir__}/temp/dns-deployment.yaml"
-          if AUTHORIZATION_MODE == "RBAC"
-            dnsData = File.read("#{__dir__}/plugins/dns/kube-dns/dns-deployment-rbac.yaml.tmpl")
-          else
-            dnsData = File.read("#{__dir__}/plugins/dns/kube-dns/dns-deployment.yaml.tmpl")
-          end
-          dnsData = dnsData.gsub("__DNS_DOMAIN__", DNS_DOMAIN);
-          # write new setup data to setup file
-          File.open(dnsFile, "wb") do |f|
-            f.write(dnsData)
-          end
+        # ## create dns-deployment.yaml file
+        # ## 根据 /plugins/dns/kube-dns/dns-deployment-rbac.yaml.tmpl
+        # ##   或 /plugins/dns/kube-dns/dns-deployment.yaml.tmpl
       else if DNS_PROVIDER == "coredns"
-            # system "#{__dir__}/plugins/dns/coredns/deploy.sh 10.100.0.10/24 #{DNS_DOMAIN} #{__dir__}/plugins/dns/coredns/coredns.yaml.sed > #{__dir__}/temp/coredns-deployment.yaml"
-            system "cp #{__dir__}/plugins/dns/coredns/coredns.yaml.sed #{__dir__}/temp/coredns-deployment.yaml"
-            system "sed -i -e s/CLUSTER_DNS_IP/10.100.0.10/g -e s/CLUSTER_DOMAIN/#{DNS_DOMAIN}/g -e s?SERVICE_CIDR?10.100.0.10\/24?g temp/coredns-deployment.yaml"
-          end
+        # ## 拷贝 plugins/dns/coredns/coredns.yaml.sed 到 temp/coredns-deployment.yaml
+        # ## 编辑 temp/coredns-deployment.yaml, 替换变量值
       end
     end
 
     # ## trigger.after [:up, :resume]
     kHost.trigger.after [:up, :resume] do
       unless OS.windows?
-        info "Sanitizing stuff..."
-        system "ssh-add ~/.vagrant.d/insecure_private_key"
-        system "rm -rf ~/.fleetctl/known_hosts"
+        # ## 运行 ssh-add ~/.vagrant.d/insecure_private_key
+        # ## 运行 rm -rf ~/.fleetctl/known_hosts
       end
     end
 
     # ## trigger.after [:up]
     kHost.trigger.after [:up] do
       info "Waiting for Kubernetes master to become ready..."
-      j, uri, res = 0, URI("http://#{MASTER_IP}:8080"), nil
       # ## 等待 Kubernetes master 就绪
-      if res.is_a? Net::HTTPSuccess
-        info "#{Time.now}: successfully deployed #{vmName}"
-      else
-        info "#{Time.now}: failed to deploy #{vmName} within timeout count of #{BOX_TIMEOUT_COUNT}"
-      end
 
       info "Installing kubectl for the Kubernetes version we just bootstrapped..."
       if OS.windows?
-        run_remote "sudo -u core /bin/sh /home/core/kubectlsetup install"
+        # ## 运行 sudo -u core /bin/sh /home/core/kubectlsetup install
       else
-        system "./temp/setup install"
+        # ## 运行 ./temp/setup install
       end
 
       # set cluster
       if OS.windows?
-        run_remote "/opt/bin/kubectl config set-cluster default-cluster --server=https://#{MASTER_IP} --certificate-authority=/vagrant/artifacts/tls/ca.pem"
-        run_remote "/opt/bin/kubectl config set-credentials default-admin --certificate-authority=/vagrant/artifacts/tls/ca.pem --client-key=/vagrant/artifacts/tls/admin-key.pem --client-certificate=/vagrant/artifacts/tls/admin.pem"
-        run_remote "/opt/bin/kubectl config set-context local --cluster=default-cluster --user=default-admin"
-        run_remote "/opt/bin/kubectl config use-context local"
+        # ## 运行
+        # ## /opt/bin/kubectl config set-cluster default-cluster --server=https://#{MASTER_IP} --certificate-authority=/vagrant/artifacts/tls/ca.pem
+        # ## /opt/bin/kubectl config set-credentials default-admin --certificate-authority=/vagrant/artifacts/tls/ca.pem --client-key=/vagrant/artifacts/tls/admin-key.pem --client-certificate=/vagrant/artifacts/tls/admin.pem
+        # ## /opt/bin/kubectl config set-context local --cluster=default-cluster --user=default-admin
+        # ## /opt/bin/kubectl config use-context local
       else
-        system "kubectl config set-cluster default-cluster --server=https://#{MASTER_IP} --certificate-authority=artifacts/tls/ca.pem"
-        system "kubectl config set-credentials default-admin --certificate-authority=artifacts/tls/ca.pem --client-key=artifacts/tls/admin-key.pem --client-certificate=artifacts/tls/admin.pem"
-        system "kubectl config set-context local --cluster=default-cluster --user=default-admin"
-        system "kubectl config use-context local"
+        # ## 运行
+        # ## kubectl config set-cluster default-cluster --server=https://#{MASTER_IP} --certificate-authority=artifacts/tls/ca.pem
+        # ## kubectl config set-credentials default-admin --certificate-authority=artifacts/tls/ca.pem --client-key=artifacts/tls/admin-key.pem --client-certificate=artifacts/tls/admin.pem
+        # ## kubectl config set-context local --cluster=default-cluster --user=default-admin
+        # ## kubectl config use-context local
       end
 
       info "Configuring Kubernetes DNS..."
       # ## 配置 Kubernetes DNS
       if DNS_PROVIDER == "kube-dns"
-          res, uri.path = nil, '/api/v1/namespaces/kube-system/replicationcontrollers/kube-dns'
-          begin
-            res = Net::HTTP.get_response(uri)
-          rescue
-          end
-          if not res.is_a? Net::HTTPSuccess
-            if OS.windows?
-              run_remote "/opt/bin/kubectl create -f /home/core/dns-deployment.yaml"
-            else
-              system "kubectl create -f temp/dns-deployment.yaml"
-            end
-          end
-
-          res, uri.path = nil, '/api/v1/namespaces/kube-system/services/kube-dns'
-          begin
-            res = Net::HTTP.get_response(uri)
-          rescue
-          end
-          if not res.is_a? Net::HTTPSuccess
-            if OS.windows?
-              run_remote "/opt/bin/kubectl create -f /home/core/dns-configmap.yaml"
-              run_remote "/opt/bin/kubectl create -f /home/core/dns-service.yaml"
-            else
-              system "kubectl create -f plugins/dns/kube-dns/dns-configmap.yaml"
-              # Use service file specific to RBAC
-              if AUTHORIZATION_MODE == "RBAC"
-                system "kubectl create -f plugins/dns/kube-dns/dns-service-rbac.yaml"
-              else
-                system "kubectl create -f plugins/dns/kube-dns/dns-service.yaml"
-              end
-            end
-          end
+        # ## 运行 
+        # ## /opt/bin/kubectl create -f /home/core/dns-deployment.yaml
+        # ## /opt/bin/kubectl create -f /home/core/dns-configmap.yaml
+        # ## /opt/bin/kubectl create -f /home/core/dns-service.yaml
       else if DNS_PROVIDER == "coredns"
-              res, uri.path = nil, '/api/v1/namespaces/kube-system/deployment/coredns'
-              begin
-                res = Net::HTTP.get_response(uri)
-              rescue
-              end
-              if not res.is_a? Net::HTTPSuccess
-                if OS.windows?
-                  run_remote "/opt/bin/kubectl create -f /home/core/coredns-deployment.yaml"
-                else
-                  system "kubectl create -f temp/coredns-deployment.yaml"
-                end
-              end
-            end
+        # ## 运行 
+        # ## /opt/bin/kubectl create -f /home/core/coredns-deployment.yaml
       end
 
       if USE_KUBE_UI
         info "Configuring Kubernetes dashboard..."
         # ## 配置 Kubernetes dashboard
-        res, uri.path = nil, '/api/v1/namespaces/kube-system/replicationcontrollers/kubernetes-dashboard'
-        begin
-          res = Net::HTTP.get_response(uri)
-        rescue
-        end
-        if not res.is_a? Net::HTTPSuccess
-          if OS.windows?
-            run_remote "/opt/bin/kubectl create -f /home/core/dashboard-deployment.yaml"
-          else
-            system "kubectl create -f plugins/dashboard/dashboard-deployment.yaml"
-          end
-        end
-
-        res, uri.path = nil, '/api/v1/namespaces/kube-system/services/kubernetes-dashboard'
-        begin
-          res = Net::HTTP.get_response(uri)
-        rescue
-        end
-        if not res.is_a? Net::HTTPSuccess
-          if OS.windows?
-            run_remote "/opt/bin/kubectl create -f /home/core/dashboard-service.yaml"
-          else
-            system "kubectl create -f plugins/dashboard/dashboard-service.yaml"
-          end
-        end
-
+        # ## 运行 
+        # ## /opt/bin/kubectl create -f /home/core/dashboard-deployment.yaml
+        # ## /opt/bin/kubectl create -f /home/core/dashboard-service.yaml
         info "Kubernetes dashboard will be available at http://#{MASTER_IP}:8080/ui"
       end
 
@@ -625,22 +530,13 @@ config.vm.define vmName = hostname do |kHost|
   end
 
   ["vmware_fusion", "vmware_workstation", "virtualbox"].each do |h|
-    kHost.vm.provider h do |vb|
-      vb.gui = GUI
-    end
+    # ## set gui = GUI
   end
   ["vmware_fusion", "vmware_workstation"].each do |h|
-    kHost.vm.provider h do |v|
-      v.vmx["memsize"] = memory
-      v.vmx["numvcpus"] = cpus
-      v.vmx['virtualHW.version'] = 10
-    end
+    # ## set vm vmx["memsize"], vmx["numvcpus"], vmx['virtualHW.version']
   end
   ["parallels", "virtualbox"].each do |h|
-    kHost.vm.provider h do |n|
-      n.memory = memory
-      n.cpus = cpus
-    end
+    # ## set vm memory, cpus
   end
 
   kHost.vm.network :private_network, ip: "#{BASE_IP_ADDR}.#{i+100}"
@@ -656,13 +552,8 @@ config.vm.define vmName = hostname do |kHost|
   end
 
   if USE_DOCKERCFG && File.exist?(DOCKERCFG)
-    kHost.vm.provision :file, run: "always",
-      :source => "#{DOCKERCFG}", :destination => "/home/core/.dockercfg"
-
-    kHost.vm.provision :shell, run: "always" do |s|
-      s.inline = "cp /home/core/.dockercfg /root/.dockercfg"
-      s.privileged = true
-    end
+    # ## 拷贝 DOCKERCFG 到 /home/core/.dockercfg
+    # ## 拷贝 /home/core/.dockercfg 到 /root/.dockercfg
   end
 
   # Copy TLS stuff
@@ -845,8 +736,6 @@ config.vm.define vmName = hostname do |kHost|
 
 end
 ```
-
-
 
 
 ###### 分阶段文件检查
@@ -1095,7 +984,7 @@ sudo -u core /bin/sh /home/core/kubectlsetup install
 
 
 -----
-###### CoreOS File List
+### CoreOS File List
 * `~/coredns-deployment.yaml`
 * `~/kubectlsetup`
 * `/etc/kubernetes/master-kubeconfig.yaml`

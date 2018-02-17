@@ -5,7 +5,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
-      <link rel="stylesheet" href="file:///C:\Users\wangw\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.3.2\node_modules\@shd101wyy\mume\dependencies\katex\katex.min.css">
+      <link rel="stylesheet" href="file:///C:\Users\wangwg2\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.3.2\node_modules\@shd101wyy\mume\dependencies\katex\katex.min.css">
       
       
       
@@ -221,7 +221,7 @@ html body h6 {
 }
 html body pre,
 html body code {
-  font-family: "Monaco", "Courier New", "Microsoft YaHei", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", sans-serif;
+  font-family: "Microsoft YaHei Mono", "Monaco", "Courier New", "Microsoft YaHei", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", sans-serif;
 }
  
       </style>
@@ -334,12 +334,154 @@ html body code {
 <hr>
 <h3 class="mume-header" id="vagrantfile-%E8%A7%A3%E6%9E%90">Vagrantfile 解析</h3>
 
-<h6 class="mume-header" id="%E9%A2%84%E5%A4%87">预备</h6>
+<h6 class="mume-header" id="vagrantfile-1">Vagrantfile (1)</h6>
 
+<p>预备 （模块，插件， 定义变量）</p>
 <pre class="language-ruby"><span class="token comment" spellcheck="true"># -*- mode: ruby -*-</span>
 <span class="token comment" spellcheck="true"># vi: set ft=ruby :</span>
 
-<span class="token comment" spellcheck="true">## ruby 模块： fileutils net/http ...</span>
+<span class="token keyword">require</span> <span class="token string">'fileutils'</span>
+<span class="token keyword">require</span> <span class="token string">'net/http'</span>
+<span class="token keyword">require</span> <span class="token string">'open-uri'</span>
+<span class="token keyword">require</span> <span class="token string">'json'</span>
+<span class="token keyword">require</span> <span class="token string">'date'</span>
+<span class="token keyword">require</span> <span class="token string">'pathname'</span>
+
+<span class="token keyword">class</span> <span class="token class-name">Module</span>
+  <span class="token keyword">def</span> <span class="token function">redefine_const</span><span class="token punctuation">(</span>name<span class="token punctuation">,</span> value<span class="token punctuation">)</span>
+    <span class="token function">__send__</span><span class="token punctuation">(</span><span class="token symbol">:remove_const</span><span class="token punctuation">,</span> name<span class="token punctuation">)</span> <span class="token keyword">if</span> const_defined<span class="token operator">?</span><span class="token punctuation">(</span>name<span class="token punctuation">)</span>
+    <span class="token function">const_set</span><span class="token punctuation">(</span>name<span class="token punctuation">,</span> value<span class="token punctuation">)</span>
+  <span class="token keyword">end</span>
+<span class="token keyword">end</span>
+
+<span class="token keyword">module</span> <span class="token constant">OS</span>
+  <span class="token keyword">def</span> <span class="token constant">OS</span><span class="token punctuation">.</span>windows<span class="token operator">?</span>
+    <span class="token punctuation">(</span><span class="token operator">/</span>cygwin<span class="token operator">|</span>mswin<span class="token operator">|</span>mingw<span class="token operator">|</span>bccwin<span class="token operator">|</span>wince<span class="token operator">|</span>emx<span class="token operator">/</span> <span class="token operator">=</span><span class="token operator">~</span> <span class="token constant">RUBY_PLATFORM</span><span class="token punctuation">)</span> <span class="token operator">!=</span> <span class="token keyword">nil</span>
+  <span class="token keyword">end</span>
+
+  <span class="token keyword">def</span> <span class="token constant">OS</span><span class="token punctuation">.</span>mac<span class="token operator">?</span>
+   <span class="token punctuation">(</span><span class="token operator">/</span>darwin<span class="token operator">/</span> <span class="token operator">=</span><span class="token operator">~</span> <span class="token constant">RUBY_PLATFORM</span><span class="token punctuation">)</span> <span class="token operator">!=</span> <span class="token keyword">nil</span>
+  <span class="token keyword">end</span>
+
+  <span class="token keyword">def</span> <span class="token constant">OS</span><span class="token punctuation">.</span>unix<span class="token operator">?</span>
+    <span class="token operator">!</span><span class="token constant">OS</span><span class="token punctuation">.</span>windows<span class="token operator">?</span>
+  <span class="token keyword">end</span>
+
+  <span class="token keyword">def</span> <span class="token constant">OS</span><span class="token punctuation">.</span>linux<span class="token operator">?</span>
+    <span class="token constant">OS</span><span class="token punctuation">.</span>unix<span class="token operator">?</span> <span class="token keyword">and</span> <span class="token keyword">not</span> <span class="token constant">OS</span><span class="token punctuation">.</span>mac<span class="token operator">?</span>
+  <span class="token keyword">end</span>
+<span class="token keyword">end</span>
+
+required_plugins <span class="token operator">=</span> <span class="token string">%w(vagrant-triggers)</span>
+
+<span class="token comment" spellcheck="true"># check either 'http_proxy' or 'HTTP_PROXY' environment variable</span>
+enable_proxy <span class="token operator">=</span> <span class="token operator">!</span><span class="token punctuation">(</span><span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'HTTP_PROXY'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'http_proxy'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">''</span><span class="token punctuation">)</span><span class="token punctuation">.</span>empty<span class="token operator">?</span>
+<span class="token keyword">if</span> enable_proxy
+  required_plugins<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span><span class="token string">'vagrant-proxyconf'</span><span class="token punctuation">)</span>
+<span class="token keyword">end</span>
+
+<span class="token keyword">if</span> <span class="token constant">OS</span><span class="token punctuation">.</span>windows<span class="token operator">?</span>
+  required_plugins<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span><span class="token string">'vagrant-winnfsd'</span><span class="token punctuation">)</span>
+<span class="token keyword">end</span>
+
+required_plugins<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span><span class="token string">'vagrant-timezone'</span><span class="token punctuation">)</span>
+
+required_plugins<span class="token punctuation">.</span><span class="token keyword">each</span> <span class="token keyword">do</span> <span class="token operator">|</span>plugin<span class="token operator">|</span>
+  need_restart <span class="token operator">=</span> <span class="token keyword">false</span>
+  <span class="token keyword">unless</span> <span class="token constant">Vagrant</span><span class="token punctuation">.</span>has_plugin<span class="token operator">?</span> plugin
+    system <span class="token string">"vagrant plugin install <span class="token interpolation"><span class="token delimiter tag">#{</span>plugin<span class="token delimiter tag">}</span></span>"</span>
+    need_restart <span class="token operator">=</span> <span class="token keyword">true</span>
+  <span class="token keyword">end</span>
+  exec <span class="token string">"vagrant <span class="token interpolation"><span class="token delimiter tag">#{</span>ARGV<span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token string">' '</span><span class="token punctuation">)</span><span class="token delimiter tag">}</span></span>"</span> <span class="token keyword">if</span> need_restart
+<span class="token keyword">end</span>
+
+<span class="token comment" spellcheck="true"># Vagrantfile API/syntax version. Don't touch unless you know what you're doing!</span>
+<span class="token constant">VAGRANTFILE_API_VERSION</span> <span class="token operator">=</span> <span class="token string">"2"</span>
+<span class="token constant">Vagrant</span><span class="token punctuation">.</span>require_version <span class="token string">">= 1.8.6"</span>
+
+<span class="token constant">MASTER_YAML</span> <span class="token operator">=</span> <span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">dirname</span><span class="token punctuation">(</span>__FILE__<span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token string">"master.yaml"</span><span class="token punctuation">)</span>
+<span class="token constant">NODE_YAML</span> <span class="token operator">=</span> <span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">dirname</span><span class="token punctuation">(</span>__FILE__<span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token string">"node.yaml"</span><span class="token punctuation">)</span>
+
+<span class="token comment" spellcheck="true"># AUTHORIZATION MODE is a setting for enabling or disabling RBAC for your Kubernetes Cluster</span>
+<span class="token comment" spellcheck="true"># The default mode is ABAC.</span>
+<span class="token constant">AUTHORIZATION_MODE</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'AUTHORIZATION_MODE'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'AlwaysAllow'</span>
+
+<span class="token keyword">if</span> <span class="token constant">AUTHORIZATION_MODE</span> <span class="token operator">==</span> <span class="token string">"RBAC"</span>
+  <span class="token constant">CERTS_MASTER_SCRIPT</span> <span class="token operator">=</span> <span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">dirname</span><span class="token punctuation">(</span>__FILE__<span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token string">"tls/make-certs-master-rbac.sh"</span><span class="token punctuation">)</span>
+<span class="token keyword">else</span>
+  <span class="token constant">CERTS_MASTER_SCRIPT</span> <span class="token operator">=</span> <span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">dirname</span><span class="token punctuation">(</span>__FILE__<span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token string">"tls/make-certs-master.sh"</span><span class="token punctuation">)</span>
+<span class="token keyword">end</span>
+
+<span class="token constant">CERTS_MASTER_CONF</span> <span class="token operator">=</span> <span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">dirname</span><span class="token punctuation">(</span>__FILE__<span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token string">"tls/openssl-master.cnf.tmpl"</span><span class="token punctuation">)</span>
+<span class="token constant">CERTS_NODE_SCRIPT</span> <span class="token operator">=</span> <span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">dirname</span><span class="token punctuation">(</span>__FILE__<span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token string">"tls/make-certs-node.sh"</span><span class="token punctuation">)</span>
+<span class="token constant">CERTS_NODE_CONF</span> <span class="token operator">=</span> <span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">dirname</span><span class="token punctuation">(</span>__FILE__<span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token string">"tls/openssl-node.cnf.tmpl"</span><span class="token punctuation">)</span>
+
+<span class="token constant">MANIFESTS_DIR</span> <span class="token operator">=</span> <span class="token constant">Pathname</span><span class="token punctuation">.</span><span class="token function">getwd</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token string">"manifests"</span><span class="token punctuation">)</span>
+
+<span class="token constant">USE_DOCKERCFG</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'USE_DOCKERCFG'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token keyword">false</span>
+<span class="token constant">DOCKERCFG</span> <span class="token operator">=</span> <span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">expand_path</span><span class="token punctuation">(</span><span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'DOCKERCFG'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">"~/.dockercfg"</span><span class="token punctuation">)</span>
+
+<span class="token comment" spellcheck="true"># DOCKER_OPTIONS = ENV['DOCKER_OPTIONS'] || ''</span>
+<span class="token constant">DOCKER_OPTIONS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'DOCKER_OPTIONS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'--registry-mirror=https://4ue5z1dy.mirror.aliyuncs.com'</span>
+
+
+<span class="token constant">KUBERNETES_VERSION</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'KUBERNETES_VERSION'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'1.9.2'</span>
+
+<span class="token constant">CHANNEL</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'CHANNEL'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'alpha'</span>
+
+<span class="token comment" spellcheck="true">#if CHANNEL != 'alpha'</span>
+<span class="token comment" spellcheck="true">#  puts "============================================================================="</span>
+<span class="token comment" spellcheck="true">#  puts "As this is a fastly evolving technology CoreOS' alpha channel is the only one"</span>
+<span class="token comment" spellcheck="true">#  puts "expected to behave reliably. While one can invoke the beta or stable channels"</span>
+<span class="token comment" spellcheck="true">#  puts "please be aware that your mileage may vary a whole lot."</span>
+<span class="token comment" spellcheck="true">#  puts "So, before submitting a bug, in this project, or upstreams (either kubernetes"</span>
+<span class="token comment" spellcheck="true">#  puts "or CoreOS) please make sure it (also) happens in the (default) alpha channel."</span>
+<span class="token comment" spellcheck="true">#  puts "============================================================================="</span>
+<span class="token comment" spellcheck="true">#end</span>
+
+<span class="token constant">COREOS_VERSION</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'COREOS_VERSION'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'latest'</span>
+upstream <span class="token operator">=</span> <span class="token string">"http://<span class="token interpolation"><span class="token delimiter tag">#{</span>CHANNEL<span class="token delimiter tag">}</span></span>.release.core-os.net/amd64-usr/<span class="token interpolation"><span class="token delimiter tag">#{</span>COREOS_VERSION<span class="token delimiter tag">}</span></span>"</span>
+<span class="token keyword">if</span> <span class="token constant">COREOS_VERSION</span> <span class="token operator">==</span> <span class="token string">"latest"</span>
+  upstream <span class="token operator">=</span> <span class="token string">"http://<span class="token interpolation"><span class="token delimiter tag">#{</span>CHANNEL<span class="token delimiter tag">}</span></span>.release.core-os.net/amd64-usr/current"</span>
+  url <span class="token operator">=</span> <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>upstream<span class="token delimiter tag">}</span></span>/version.txt"</span>
+  <span class="token builtin">Object</span><span class="token punctuation">.</span><span class="token function">redefine_const</span><span class="token punctuation">(</span><span class="token symbol">:COREOS_VERSION</span><span class="token punctuation">,</span>
+    <span class="token function">open</span><span class="token punctuation">(</span>url<span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">read</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">scan</span><span class="token punctuation">(</span><span class="token regex">/COREOS_VERSION=.*/</span><span class="token punctuation">)</span><span class="token punctuation">[</span><span class="token number">0</span><span class="token punctuation">]</span><span class="token punctuation">.</span><span class="token function">gsub</span><span class="token punctuation">(</span><span class="token string">'COREOS_VERSION='</span><span class="token punctuation">,</span> <span class="token string">''</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+<span class="token keyword">end</span>
+
+<span class="token constant">NODES</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'NODES'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">2</span>
+
+<span class="token constant">MASTER_MEM</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'MASTER_MEM'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">1024</span>
+<span class="token constant">MASTER_CPUS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'MASTER_CPUS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">1</span>
+
+<span class="token constant">NODE_MEM</span><span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'NODE_MEM'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">2048</span>
+<span class="token constant">NODE_CPUS</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'NODE_CPUS'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">1</span>
+
+<span class="token comment" spellcheck="true"># BASE_IP_ADDR = ENV['BASE_IP_ADDR'] || "172.17.8"</span>
+<span class="token constant">BASE_IP_ADDR</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'BASE_IP_ADDR'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">"192.168.99"</span>
+
+<span class="token constant">DNS_PROVIDER</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'DNS_PROVIDER'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">"coredns"</span>
+<span class="token constant">DNS_DOMAIN</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'DNS_DOMAIN'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">"cluster.local"</span>
+
+<span class="token constant">SERIAL_LOGGING</span> <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'SERIAL_LOGGING'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>to_s<span class="token punctuation">.</span>downcase <span class="token operator">==</span> <span class="token string">'true'</span><span class="token punctuation">)</span>
+<span class="token constant">GUI</span> <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'GUI'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>to_s<span class="token punctuation">.</span>downcase <span class="token operator">==</span> <span class="token string">'true'</span><span class="token punctuation">)</span>
+<span class="token constant">USE_KUBE_UI</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'USE_KUBE_UI'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token keyword">false</span>
+
+<span class="token constant">BOX_TIMEOUT_COUNT</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'BOX_TIMEOUT_COUNT'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">50</span>
+
+<span class="token keyword">if</span> enable_proxy
+  <span class="token constant">HTTP_PROXY</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'HTTP_PROXY'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'http_proxy'</span><span class="token punctuation">]</span>
+  <span class="token constant">HTTPS_PROXY</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'HTTPS_PROXY'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'https_proxy'</span><span class="token punctuation">]</span>
+  <span class="token constant">NO_PROXY</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'NO_PROXY'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'no_proxy'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">"localhost"</span>
+<span class="token keyword">end</span>
+
+<span class="token constant">REMOVE_VAGRANTFILE_USER_DATA_BEFORE_HALT</span> <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'REMOVE_VAGRANTFILE_USER_DATA_BEFORE_HALT'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>to_s<span class="token punctuation">.</span>downcase <span class="token operator">==</span> <span class="token string">'true'</span><span class="token punctuation">)</span>
+<span class="token comment" spellcheck="true"># if this is set true, remember to use --provision when executing vagrant up / reload</span>
+
+<span class="token comment" spellcheck="true"># Read YAML file with mountpoint details</span>
+<span class="token constant">MOUNT_POINTS</span> <span class="token operator">=</span> <span class="token constant">YAML</span><span class="token punctuation">:</span><span class="token symbol">:load_file</span><span class="token punctuation">(</span><span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span><span class="token builtin">File</span><span class="token punctuation">.</span><span class="token function">dirname</span><span class="token punctuation">(</span>__FILE__<span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token string">"synced_folders.yaml"</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+</pre>
+<p>说明： ruby模块，插件， 定义变量</p>
+<pre class="language-ruby"><span class="token comment" spellcheck="true">## ruby 模块： fileutils net/http ...</span>
 <span class="token comment" spellcheck="true">## 插件：vagrant-triggers vagrant-proxyconf vagrant-winnfsd vagrant-timezone</span>
 <span class="token comment" spellcheck="true"># def OS.windows</span>
 <span class="token comment" spellcheck="true"># MASTER_YAML         = master.yaml</span>
@@ -371,7 +513,309 @@ html body code {
 <span class="token comment" spellcheck="true"># REMOVE_VAGRANTFILE_USER_DATA_BEFORE_HALT = false</span>
 <span class="token comment" spellcheck="true"># MOUNT_POINTS        = synced_folders.yaml</span>
 </pre>
-<h6 class="mume-header" id="%E6%A0%B8%E5%BF%83%E9%83%A8%E5%88%86%E7%BB%93%E6%9E%84">核心部分结构</h6>
+<h6 class="mume-header" id="vagrantfile-2">Vagrantfile (2)</h6>
+
+<p>Vagrant.configure</p>
+<pre class="language-ruby"><span class="token constant">Vagrant</span><span class="token punctuation">.</span><span class="token function">configure</span><span class="token punctuation">(</span><span class="token constant">VAGRANTFILE_API_VERSION</span><span class="token punctuation">)</span> <span class="token keyword">do</span> <span class="token operator">|</span>config<span class="token operator">|</span>
+  <span class="token comment" spellcheck="true"># always use host timezone in VMs</span>
+  config<span class="token punctuation">.</span>timezone<span class="token punctuation">.</span>value <span class="token operator">=</span> <span class="token symbol">:host</span>
+
+  <span class="token comment" spellcheck="true"># always use Vagrants' insecure key</span>
+  config<span class="token punctuation">.</span>ssh<span class="token punctuation">.</span>insert_key <span class="token operator">=</span> <span class="token keyword">false</span>
+  config<span class="token punctuation">.</span>ssh<span class="token punctuation">.</span>forward_agent <span class="token operator">=</span> <span class="token keyword">true</span>
+
+  config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>box <span class="token operator">=</span> <span class="token string">"coreos-<span class="token interpolation"><span class="token delimiter tag">#{</span>CHANNEL<span class="token delimiter tag">}</span></span>"</span>
+  config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>box_version <span class="token operator">=</span> <span class="token string">"= <span class="token interpolation"><span class="token delimiter tag">#{</span>COREOS_VERSION<span class="token delimiter tag">}</span></span>"</span>
+  config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>box_url <span class="token operator">=</span> <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>upstream<span class="token delimiter tag">}</span></span>/coreos_production_vagrant.json"</span>
+
+  <span class="token punctuation">[</span><span class="token string">"vmware_fusion"</span><span class="token punctuation">,</span> <span class="token string">"vmware_workstation"</span><span class="token punctuation">]</span><span class="token punctuation">.</span><span class="token keyword">each</span> <span class="token keyword">do</span> <span class="token operator">|</span>vmware<span class="token operator">|</span>
+    config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>provider vmware <span class="token keyword">do</span> <span class="token operator">|</span>v<span class="token punctuation">,</span> override<span class="token operator">|</span>
+      override<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>box_url <span class="token operator">=</span> <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>upstream<span class="token delimiter tag">}</span></span>/coreos_production_vagrant_vmware_fusion.json"</span>
+    <span class="token keyword">end</span>
+  <span class="token keyword">end</span>
+
+  config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>provider <span class="token symbol">:parallels</span> <span class="token keyword">do</span> <span class="token operator">|</span>vb<span class="token punctuation">,</span> override<span class="token operator">|</span>
+    override<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>box <span class="token operator">=</span> <span class="token string">"AntonioMeireles/coreos-<span class="token interpolation"><span class="token delimiter tag">#{</span>CHANNEL<span class="token delimiter tag">}</span></span>"</span>
+    override<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>box_url <span class="token operator">=</span> <span class="token string">"https://vagrantcloud.com/AntonioMeireles/coreos-<span class="token interpolation"><span class="token delimiter tag">#{</span>CHANNEL<span class="token delimiter tag">}</span></span>"</span>
+  <span class="token keyword">end</span>
+
+  config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>provider <span class="token symbol">:virtualbox</span> <span class="token keyword">do</span> <span class="token operator">|</span>v<span class="token operator">|</span>
+    <span class="token comment" spellcheck="true"># On VirtualBox, we don't have guest additions or a functional vboxsf</span>
+    <span class="token comment" spellcheck="true"># in CoreOS, so tell Vagrant that so it can be smarter.</span>
+    v<span class="token punctuation">.</span>check_guest_additions <span class="token operator">=</span> <span class="token keyword">false</span>
+    v<span class="token punctuation">.</span>functional_vboxsf     <span class="token operator">=</span> <span class="token keyword">false</span>
+  <span class="token keyword">end</span>
+  config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>provider <span class="token symbol">:parallels</span> <span class="token keyword">do</span> <span class="token operator">|</span>p<span class="token operator">|</span>
+    p<span class="token punctuation">.</span>update_guest_tools <span class="token operator">=</span> <span class="token keyword">false</span>
+    p<span class="token punctuation">.</span>check_guest_tools <span class="token operator">=</span> <span class="token keyword">false</span>
+  <span class="token keyword">end</span>
+
+  <span class="token comment" spellcheck="true"># plugin conflict</span>
+  <span class="token keyword">if</span> <span class="token constant">Vagrant</span><span class="token punctuation">.</span>has_plugin<span class="token operator">?</span><span class="token punctuation">(</span><span class="token string">"vagrant-vbguest"</span><span class="token punctuation">)</span> <span class="token keyword">then</span>
+    config<span class="token punctuation">.</span>vbguest<span class="token punctuation">.</span>auto_update <span class="token operator">=</span> <span class="token keyword">false</span>
+  <span class="token keyword">end</span>
+
+  <span class="token comment" spellcheck="true"># setup VM proxy to system proxy environment</span>
+  <span class="token keyword">if</span> <span class="token constant">Vagrant</span><span class="token punctuation">.</span>has_plugin<span class="token operator">?</span><span class="token punctuation">(</span><span class="token string">"vagrant-proxyconf"</span><span class="token punctuation">)</span> <span class="token operator">&amp;&amp;</span> enable_proxy
+    config<span class="token punctuation">.</span>proxy<span class="token punctuation">.</span>http <span class="token operator">=</span> <span class="token constant">HTTP_PROXY</span>
+    config<span class="token punctuation">.</span>proxy<span class="token punctuation">.</span>https <span class="token operator">=</span> <span class="token constant">HTTPS_PROXY</span>
+    <span class="token comment" spellcheck="true"># most http tools, like wget and curl do not undestand IP range</span>
+    <span class="token comment" spellcheck="true"># thus adding each node one by one to no_proxy</span>
+    no_proxies <span class="token operator">=</span> <span class="token constant">NO_PROXY</span><span class="token punctuation">.</span><span class="token function">split</span><span class="token punctuation">(</span><span class="token string">","</span><span class="token punctuation">)</span>
+    <span class="token punctuation">(</span><span class="token number">1</span><span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token constant">NODES</span><span class="token punctuation">.</span>to_i <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token keyword">each</span> <span class="token keyword">do</span> <span class="token operator">|</span>i<span class="token operator">|</span>
+      vm_ip_addr <span class="token operator">=</span> <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>BASE_IP_ADDR<span class="token delimiter tag">}</span></span>.<span class="token interpolation"><span class="token delimiter tag">#{</span>i<span class="token operator">+</span><span class="token number">100</span><span class="token delimiter tag">}</span></span>"</span>
+      <span class="token builtin">Object</span><span class="token punctuation">.</span><span class="token function">redefine_const</span><span class="token punctuation">(</span><span class="token symbol">:NO_PROXY</span><span class="token punctuation">,</span>
+        <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>NO_PROXY<span class="token delimiter tag">}</span></span>,<span class="token interpolation"><span class="token delimiter tag">#{</span>vm_ip_addr<span class="token delimiter tag">}</span></span>"</span><span class="token punctuation">)</span> <span class="token keyword">unless</span> no_proxies<span class="token punctuation">.</span>include<span class="token operator">?</span><span class="token punctuation">(</span>vm_ip_addr<span class="token punctuation">)</span>
+    <span class="token keyword">end</span>
+    config<span class="token punctuation">.</span>proxy<span class="token punctuation">.</span>no_proxy <span class="token operator">=</span> <span class="token constant">NO_PROXY</span>
+    <span class="token comment" spellcheck="true"># proxyconf plugin use wrong approach to set Docker proxy for CoreOS</span>
+    <span class="token comment" spellcheck="true"># force proxyconf to skip Docker proxy setup</span>
+    config<span class="token punctuation">.</span>proxy<span class="token punctuation">.</span>enabled <span class="token operator">=</span> <span class="token punctuation">{</span> docker<span class="token punctuation">:</span> <span class="token keyword">false</span> <span class="token punctuation">}</span>
+  <span class="token keyword">end</span>
+
+  <span class="token punctuation">(</span><span class="token number">1</span><span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token constant">NODES</span><span class="token punctuation">.</span>to_i <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token keyword">each</span> <span class="token keyword">do</span> <span class="token operator">|</span>i<span class="token operator">|</span>
+    <span class="token keyword">if</span> i <span class="token operator">==</span> <span class="token number">1</span>
+      hostname <span class="token operator">=</span> <span class="token string">"master"</span>
+      <span class="token constant">ETCD_SEED_CLUSTER</span> <span class="token operator">=</span> <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>hostname<span class="token delimiter tag">}</span></span>=http://<span class="token interpolation"><span class="token delimiter tag">#{</span>BASE_IP_ADDR<span class="token delimiter tag">}</span></span>.<span class="token interpolation"><span class="token delimiter tag">#{</span>i<span class="token operator">+</span><span class="token number">100</span><span class="token delimiter tag">}</span></span>:2380"</span>
+      cfg <span class="token operator">=</span> <span class="token constant">MASTER_YAML</span>
+      memory <span class="token operator">=</span> <span class="token constant">MASTER_MEM</span>
+      cpus <span class="token operator">=</span> <span class="token constant">MASTER_CPUS</span>
+      <span class="token constant">MASTER_IP</span><span class="token operator">=</span><span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>BASE_IP_ADDR<span class="token delimiter tag">}</span></span>.<span class="token interpolation"><span class="token delimiter tag">#{</span>i<span class="token operator">+</span><span class="token number">100</span><span class="token delimiter tag">}</span></span>"</span>
+    <span class="token keyword">else</span>
+      hostname <span class="token operator">=</span> <span class="token string">"node-%02d"</span> <span class="token operator">%</span> <span class="token punctuation">(</span>i <span class="token operator">-</span> <span class="token number">1</span><span class="token punctuation">)</span>
+      cfg <span class="token operator">=</span> <span class="token constant">NODE_YAML</span>
+      memory <span class="token operator">=</span> <span class="token constant">NODE_MEM</span>
+      cpus <span class="token operator">=</span> <span class="token constant">NODE_CPUS</span>
+    <span class="token keyword">end</span>
+
+    config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>define vmName <span class="token operator">=</span> hostname <span class="token keyword">do</span> <span class="token operator">|</span>kHost<span class="token operator">|</span>
+      <span class="token comment" spellcheck="true"># ######################################################################</span>
+      <span class="token comment" spellcheck="true"># ## 核心部分</span>
+      <span class="token comment" spellcheck="true"># ######################################################################</span>
+    <span class="token keyword">end</span>
+  <span class="token keyword">end</span>
+<span class="token keyword">end</span>  
+</pre>
+<h6 class="mume-header" id="vagrantfile-3">Vagrantfile (3)</h6>
+
+<p>Vagrant.configure - config.vm.define</p>
+<pre class="language-ruby">config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>define vmName <span class="token operator">=</span> hostname <span class="token keyword">do</span> <span class="token operator">|</span>kHost<span class="token operator">|</span>
+  kHost<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>hostname <span class="token operator">=</span> vmName
+
+  <span class="token comment" spellcheck="true"># suspend / resume is hard to be properly supported because we have no way</span>
+  <span class="token comment" spellcheck="true"># to assure the fully deterministic behavior of whatever is inside the VMs</span>
+  <span class="token comment" spellcheck="true"># when faced with XXL clock gaps... so we just disable this functionality.</span>
+  kHost<span class="token punctuation">.</span>trigger<span class="token punctuation">.</span>reject <span class="token punctuation">[</span><span class="token symbol">:suspend</span><span class="token punctuation">,</span> <span class="token symbol">:resume</span><span class="token punctuation">]</span> <span class="token keyword">do</span>
+    info <span class="token string">"'vagrant suspend' and 'vagrant resume' are disabled."</span>
+    info <span class="token string">"- please do use 'vagrant halt' and 'vagrant up' instead."</span>
+  <span class="token keyword">end</span>
+
+  config<span class="token punctuation">.</span>trigger<span class="token punctuation">.</span>instead_of <span class="token symbol">:reload</span> <span class="token keyword">do</span>
+    exec <span class="token string">"vagrant halt &amp;&amp; vagrant up"</span>
+    exit
+  <span class="token keyword">end</span>
+
+  <span class="token comment" spellcheck="true"># vagrant-triggers has no concept of global triggers so to avoid having</span>
+  <span class="token comment" spellcheck="true"># then to run as many times as the total number of VMs we only call them</span>
+  <span class="token comment" spellcheck="true"># in the master (re: emyl/vagrant-triggers#13)...</span>
+  <span class="token comment" spellcheck="true"># ## master 虚拟机</span>
+  <span class="token keyword">if</span> vmName <span class="token operator">==</span> <span class="token string">"master"</span>
+    <span class="token comment" spellcheck="true"># ## trigger.before [:up, :provision]</span>
+    kHost<span class="token punctuation">.</span>trigger<span class="token punctuation">.</span>before <span class="token punctuation">[</span><span class="token symbol">:up</span><span class="token punctuation">,</span> <span class="token symbol">:provision</span><span class="token punctuation">]</span> <span class="token keyword">do</span>
+      info <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>Time<span class="token punctuation">.</span>now<span class="token delimiter tag">}</span></span>: setting up Kubernetes master..."</span>
+      info <span class="token string">"Setting Kubernetes version <span class="token interpolation"><span class="token delimiter tag">#{</span>KUBERNETES_VERSION<span class="token delimiter tag">}</span></span>"</span>
+
+      <span class="token comment" spellcheck="true"># create setup file</span>
+      setupFile <span class="token operator">=</span> <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>__dir__<span class="token delimiter tag">}</span></span>/temp/setup"</span>
+      <span class="token comment" spellcheck="true"># ## create temp/setup </span>
+
+      <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"kube-dns"</span>
+        <span class="token comment" spellcheck="true"># ## create dns-deployment.yaml file</span>
+        <span class="token comment" spellcheck="true"># ## 根据 /plugins/dns/kube-dns/dns-deployment-rbac.yaml.tmpl</span>
+        <span class="token comment" spellcheck="true"># ##   或 /plugins/dns/kube-dns/dns-deployment.yaml.tmpl</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"coredns"</span>
+        <span class="token comment" spellcheck="true"># ## 拷贝 plugins/dns/coredns/coredns.yaml.sed 到 temp/coredns-deployment.yaml</span>
+        <span class="token comment" spellcheck="true"># ## 编辑 temp/coredns-deployment.yaml, 替换变量值</span>
+      <span class="token keyword">end</span>
+    <span class="token keyword">end</span>
+
+    <span class="token comment" spellcheck="true"># ## trigger.after [:up, :resume]</span>
+    kHost<span class="token punctuation">.</span>trigger<span class="token punctuation">.</span>after <span class="token punctuation">[</span><span class="token symbol">:up</span><span class="token punctuation">,</span> <span class="token symbol">:resume</span><span class="token punctuation">]</span> <span class="token keyword">do</span>
+      <span class="token keyword">unless</span> <span class="token constant">OS</span><span class="token punctuation">.</span>windows<span class="token operator">?</span>
+        <span class="token comment" spellcheck="true"># ## 运行 ssh-add ~/.vagrant.d/insecure_private_key</span>
+        <span class="token comment" spellcheck="true"># ## 运行 rm -rf ~/.fleetctl/known_hosts</span>
+      <span class="token keyword">end</span>
+    <span class="token keyword">end</span>
+
+    <span class="token comment" spellcheck="true"># ## trigger.after [:up]</span>
+    kHost<span class="token punctuation">.</span>trigger<span class="token punctuation">.</span>after <span class="token punctuation">[</span><span class="token symbol">:up</span><span class="token punctuation">]</span> <span class="token keyword">do</span>
+      info <span class="token string">"Waiting for Kubernetes master to become ready..."</span>
+      <span class="token comment" spellcheck="true"># ## 等待 Kubernetes master 就绪</span>
+
+      info <span class="token string">"Installing kubectl for the Kubernetes version we just bootstrapped..."</span>
+      <span class="token keyword">if</span> <span class="token constant">OS</span><span class="token punctuation">.</span>windows<span class="token operator">?</span>
+        <span class="token comment" spellcheck="true"># ## 运行 sudo -u core /bin/sh /home/core/kubectlsetup install</span>
+      <span class="token keyword">else</span>
+        <span class="token comment" spellcheck="true"># ## 运行 ./temp/setup install</span>
+      <span class="token keyword">end</span>
+
+      <span class="token comment" spellcheck="true"># set cluster</span>
+      <span class="token keyword">if</span> <span class="token constant">OS</span><span class="token punctuation">.</span>windows<span class="token operator">?</span>
+        <span class="token comment" spellcheck="true"># ## 运行</span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl config set-cluster default-cluster --server=https://#{MASTER_IP} --certificate-authority=/vagrant/artifacts/tls/ca.pem</span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl config set-credentials default-admin --certificate-authority=/vagrant/artifacts/tls/ca.pem --client-key=/vagrant/artifacts/tls/admin-key.pem --client-certificate=/vagrant/artifacts/tls/admin.pem</span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl config set-context local --cluster=default-cluster --user=default-admin</span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl config use-context local</span>
+      <span class="token keyword">else</span>
+        <span class="token comment" spellcheck="true"># ## 运行</span>
+        <span class="token comment" spellcheck="true"># ## kubectl config set-cluster default-cluster --server=https://#{MASTER_IP} --certificate-authority=artifacts/tls/ca.pem</span>
+        <span class="token comment" spellcheck="true"># ## kubectl config set-credentials default-admin --certificate-authority=artifacts/tls/ca.pem --client-key=artifacts/tls/admin-key.pem --client-certificate=artifacts/tls/admin.pem</span>
+        <span class="token comment" spellcheck="true"># ## kubectl config set-context local --cluster=default-cluster --user=default-admin</span>
+        <span class="token comment" spellcheck="true"># ## kubectl config use-context local</span>
+      <span class="token keyword">end</span>
+
+      info <span class="token string">"Configuring Kubernetes DNS..."</span>
+      <span class="token comment" spellcheck="true"># ## 配置 Kubernetes DNS</span>
+      <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"kube-dns"</span>
+        <span class="token comment" spellcheck="true"># ## 运行 </span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl create -f /home/core/dns-deployment.yaml</span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl create -f /home/core/dns-configmap.yaml</span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl create -f /home/core/dns-service.yaml</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"coredns"</span>
+        <span class="token comment" spellcheck="true"># ## 运行 </span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl create -f /home/core/coredns-deployment.yaml</span>
+      <span class="token keyword">end</span>
+
+      <span class="token keyword">if</span> <span class="token constant">USE_KUBE_UI</span>
+        info <span class="token string">"Configuring Kubernetes dashboard..."</span>
+        <span class="token comment" spellcheck="true"># ## 配置 Kubernetes dashboard</span>
+        <span class="token comment" spellcheck="true"># ## 运行 </span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl create -f /home/core/dashboard-deployment.yaml</span>
+        <span class="token comment" spellcheck="true"># ## /opt/bin/kubectl create -f /home/core/dashboard-service.yaml</span>
+        info <span class="token string">"Kubernetes dashboard will be available at http://<span class="token interpolation"><span class="token delimiter tag">#{</span>MASTER_IP<span class="token delimiter tag">}</span></span>:8080/ui"</span>
+      <span class="token keyword">end</span>
+
+    <span class="token keyword">end</span>
+
+    <span class="token comment" spellcheck="true"># copy setup files to master vm if host is windows</span>
+    <span class="token keyword">if</span> <span class="token constant">OS</span><span class="token punctuation">.</span>windows<span class="token operator">?</span>
+      <span class="token comment" spellcheck="true"># ## 拷贝 temp/setup 到 /home/core/kubectlsetup</span>
+
+      <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"kube-dns"</span>
+        <span class="token comment" spellcheck="true"># ## 拷贝 plugins/dns/kube-dns/dns-configmap.yaml 到 /home/core/dns-configmap.yaml</span>
+        <span class="token comment" spellcheck="true"># ## 拷贝 temp/dns-deployment.yaml 到 /home/core/dns-deployment.yaml</span>
+        <span class="token comment" spellcheck="true"># ## 拷贝 plugins/dns/kube-dns/dns-service.yaml 到 /home/core/dns-service.yaml</span>
+        <span class="token comment" spellcheck="true"># ## 拷贝 plugins/dns/kube-dns/dns-service-rbac.yaml 到 /home/core/dns-service-rbac.yaml</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token constant">DNS_PROVIDER</span> <span class="token operator">==</span> <span class="token string">"coredns"</span>
+        <span class="token comment" spellcheck="true"># ## 拷贝 temp/coredns-deployment.yaml 到 /home/core/coredns-deployment.yaml</span>
+      <span class="token keyword">end</span>
+
+      <span class="token keyword">if</span> <span class="token constant">USE_KUBE_UI</span>
+        <span class="token comment" spellcheck="true"># ## 拷贝 plugins/dashboard/dashboard-deployment.yaml 到 /home/core/dashboard-deployment.yaml</span>
+        <span class="token comment" spellcheck="true"># ## 拷贝 plugins/dashboard/dashboard-service.yaml 到 /home/core/dashboard-service.yaml</span>
+      <span class="token keyword">end</span>
+    <span class="token keyword">end</span>
+
+    <span class="token comment" spellcheck="true"># clean temp directory after master is destroyed</span>
+    <span class="token comment" spellcheck="true"># ## trigger.after [:destroy]</span>
+    kHost<span class="token punctuation">.</span>trigger<span class="token punctuation">.</span>after <span class="token punctuation">[</span><span class="token symbol">:destroy</span><span class="token punctuation">]</span> <span class="token keyword">do</span>
+      <span class="token comment" spellcheck="true"># ## 清理 宿主机 temp/* 和 artifacts/tls/*</span>
+    <span class="token keyword">end</span>
+  <span class="token keyword">end</span>
+
+  <span class="token comment" spellcheck="true"># ## node 虚拟机</span>
+  <span class="token keyword">if</span> vmName <span class="token operator">==</span> <span class="token string">"node-%02d"</span> <span class="token operator">%</span> <span class="token punctuation">(</span>i <span class="token operator">-</span> <span class="token number">1</span><span class="token punctuation">)</span>
+    <span class="token comment" spellcheck="true"># ## trigger.before [:up, :provision]</span>
+    kHost<span class="token punctuation">.</span>trigger<span class="token punctuation">.</span>before <span class="token punctuation">[</span><span class="token symbol">:up</span><span class="token punctuation">,</span> <span class="token symbol">:provision</span><span class="token punctuation">]</span> <span class="token keyword">do</span>
+      info <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>Time<span class="token punctuation">.</span>now<span class="token delimiter tag">}</span></span>: setting up node..."</span>
+    <span class="token keyword">end</span>
+
+    <span class="token comment" spellcheck="true"># ## trigger.after [:up]</span>
+    kHost<span class="token punctuation">.</span>trigger<span class="token punctuation">.</span>after <span class="token punctuation">[</span><span class="token symbol">:up</span><span class="token punctuation">]</span> <span class="token keyword">do</span>
+      info <span class="token string">"Waiting for Kubernetes minion [node-%02d"</span> <span class="token operator">%</span> <span class="token punctuation">(</span>i <span class="token operator">-</span> <span class="token number">1</span><span class="token punctuation">)</span> <span class="token operator">+</span> <span class="token string">"] to become ready..."</span>
+      <span class="token comment" spellcheck="true"># ## 等待 node 虚拟机准备好</span>
+      <span class="token keyword">if</span> hasResponse
+        info <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>Time<span class="token punctuation">.</span>now<span class="token delimiter tag">}</span></span>: successfully deployed <span class="token interpolation"><span class="token delimiter tag">#{</span>vmName<span class="token delimiter tag">}</span></span>"</span>
+      <span class="token keyword">else</span>
+        info <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>Time<span class="token punctuation">.</span>now<span class="token delimiter tag">}</span></span>: failed to deploy <span class="token interpolation"><span class="token delimiter tag">#{</span>vmName<span class="token delimiter tag">}</span></span> within timeout count of <span class="token interpolation"><span class="token delimiter tag">#{</span>BOX_TIMEOUT_COUNT<span class="token delimiter tag">}</span></span>"</span>
+      <span class="token keyword">end</span>
+    <span class="token keyword">end</span>
+  <span class="token keyword">end</span>
+
+  kHost<span class="token punctuation">.</span>trigger<span class="token punctuation">.</span>before <span class="token punctuation">[</span><span class="token symbol">:halt</span><span class="token punctuation">,</span> <span class="token symbol">:reload</span><span class="token punctuation">]</span> <span class="token keyword">do</span>
+    <span class="token comment" spellcheck="true"># ## 清除 /var/lib/coreos-vagrant/vagrantfile-user-data</span>
+  <span class="token keyword">end</span>
+
+  <span class="token keyword">if</span> <span class="token constant">SERIAL_LOGGING</span>
+    <span class="token comment" spellcheck="true"># ## 虚拟机 serial log 设置</span>
+  <span class="token keyword">end</span>
+
+  <span class="token punctuation">[</span><span class="token string">"vmware_fusion"</span><span class="token punctuation">,</span> <span class="token string">"vmware_workstation"</span><span class="token punctuation">,</span> <span class="token string">"virtualbox"</span><span class="token punctuation">]</span><span class="token punctuation">.</span><span class="token keyword">each</span> <span class="token keyword">do</span> <span class="token operator">|</span>h<span class="token operator">|</span>
+    <span class="token comment" spellcheck="true"># ## set gui = GUI</span>
+  <span class="token keyword">end</span>
+  <span class="token punctuation">[</span><span class="token string">"vmware_fusion"</span><span class="token punctuation">,</span> <span class="token string">"vmware_workstation"</span><span class="token punctuation">]</span><span class="token punctuation">.</span><span class="token keyword">each</span> <span class="token keyword">do</span> <span class="token operator">|</span>h<span class="token operator">|</span>
+    <span class="token comment" spellcheck="true"># ## set vm vmx["memsize"], vmx["numvcpus"], vmx['virtualHW.version']</span>
+  <span class="token keyword">end</span>
+  <span class="token punctuation">[</span><span class="token string">"parallels"</span><span class="token punctuation">,</span> <span class="token string">"virtualbox"</span><span class="token punctuation">]</span><span class="token punctuation">.</span><span class="token keyword">each</span> <span class="token keyword">do</span> <span class="token operator">|</span>h<span class="token operator">|</span>
+    <span class="token comment" spellcheck="true"># ## set vm memory, cpus</span>
+  <span class="token keyword">end</span>
+
+  kHost<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>network <span class="token symbol">:private_network</span><span class="token punctuation">,</span> ip<span class="token punctuation">:</span> <span class="token string">"<span class="token interpolation"><span class="token delimiter tag">#{</span>BASE_IP_ADDR<span class="token delimiter tag">}</span></span>.<span class="token interpolation"><span class="token delimiter tag">#{</span>i<span class="token operator">+</span><span class="token number">100</span><span class="token delimiter tag">}</span></span>"</span>
+
+  <span class="token comment" spellcheck="true"># you can override this in synced_folders.yaml</span>
+  kHost<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>synced_folder <span class="token string">"."</span><span class="token punctuation">,</span> <span class="token string">"/vagrant"</span><span class="token punctuation">,</span> disabled<span class="token punctuation">:</span> <span class="token keyword">true</span>
+
+  <span class="token keyword">begin</span>
+    <span class="token constant">MOUNT_POINTS</span><span class="token punctuation">.</span><span class="token keyword">each</span> <span class="token keyword">do</span> <span class="token operator">|</span>mount<span class="token operator">|</span>
+    <span class="token comment" spellcheck="true"># ## mount 文件系统</span>
+    <span class="token keyword">end</span>
+  <span class="token keyword">rescue</span>
+  <span class="token keyword">end</span>
+
+  <span class="token keyword">if</span> <span class="token constant">USE_DOCKERCFG</span> <span class="token operator">&amp;&amp;</span> <span class="token builtin">File</span><span class="token punctuation">.</span>exist<span class="token operator">?</span><span class="token punctuation">(</span><span class="token constant">DOCKERCFG</span><span class="token punctuation">)</span>
+    <span class="token comment" spellcheck="true"># ## 拷贝 DOCKERCFG 到 /home/core/.dockercfg</span>
+    <span class="token comment" spellcheck="true"># ## 拷贝 /home/core/.dockercfg 到 /root/.dockercfg</span>
+  <span class="token keyword">end</span>
+
+  <span class="token comment" spellcheck="true"># Copy TLS stuff</span>
+  <span class="token comment" spellcheck="true"># ## [provision] 处理 TLS </span>
+  <span class="token keyword">if</span> vmName <span class="token operator">==</span> <span class="token string">"master"</span>
+    <span class="token comment" spellcheck="true"># 拷贝 tls/make-certs-master-rbac.sh 到 /tmp/make-certs.sh</span>
+    <span class="token comment" spellcheck="true"># 拷贝 tls/openssl-master.cnf.tmpl 到 /tmp/openssl.cnf</span>
+    <span class="token comment" spellcheck="true"># 处理 /tmp/openssl.cnf， 替换变量值</span>
+    <span class="token comment" spellcheck="true"># 拷贝 /vagrant/tls/master-kubeconfig.yaml 到 /etc/kubernetes/master-kubeconfig.yaml</span>
+  <span class="token keyword">else</span>
+    <span class="token comment" spellcheck="true"># 拷贝 tls/make-certs-node.sh 到 /tmp/make-certs.sh</span>
+    <span class="token comment" spellcheck="true"># 拷贝 tls/openssl-node.cnf.tmpl 到 /tmp/openssl.cnf</span>
+    <span class="token comment" spellcheck="true"># 拷贝 /vagrant/tls/node-kubeconfig.yaml 到 /etc/kubernetes/node-kubeconfig.yaml</span>
+    <span class="token comment" spellcheck="true"># 处理 /tmp/openssl.cnf， 替换变量值</span>
+    <span class="token comment" spellcheck="true"># 处理 /etc/kubernetes/node-kubeconfig.yaml， 替换变量值</span>
+  <span class="token keyword">end</span>
+
+  <span class="token comment" spellcheck="true"># Process Kubernetes manifests, depending on node type</span>
+  <span class="token comment" spellcheck="true"># ## [provision] 处理 Kubernetes manifests</span>
+  <span class="token keyword">begin</span>
+    <span class="token keyword">if</span> vmName <span class="token operator">==</span> <span class="token string">"master"</span>
+      <span class="token comment" spellcheck="true"># ## 拷贝 /vagrant/manifests/master* 到 /etc/kubernetes/manifests </span>
+    <span class="token keyword">else</span>
+      <span class="token comment" spellcheck="true"># ## 拷贝 /vagrant/manifests/node* 到 /etc/kubernetes/manifests </span>
+    <span class="token keyword">end</span>
+    <span class="token comment" spellcheck="true"># ## 处理 /vagrant/manifests/*， 替换变量值</span>
+  <span class="token keyword">end</span>
+
+  <span class="token comment" spellcheck="true"># Process vagrantfile</span>
+  <span class="token comment" spellcheck="true"># ## [provision] Process vagrantfile</span>
+  <span class="token keyword">if</span> <span class="token builtin">File</span><span class="token punctuation">.</span>exist<span class="token operator">?</span><span class="token punctuation">(</span>cfg<span class="token punctuation">)</span>
+    <span class="token comment" spellcheck="true"># ## cfg 为 master.yaml 或 node.yml</span>
+    <span class="token comment" spellcheck="true"># ## cfg 拷贝到 /tmp/vagrantfile-user-data</span>
+    <span class="token comment" spellcheck="true"># ## 处理 /tmp/vagrantfile-user-data， 替换变量值</span>
+    <span class="token comment" spellcheck="true"># ## 将 /tmp/vagrantfile-user-data 拷贝到 /var/lib/coreos-vagrant/vagrantfile-user-data</span>
+  <span class="token keyword">end</span>
+
+<span class="token keyword">end</span>
+
+</pre>
+<h6 class="mume-header" id="configvmdefine">config.vm.define</h6>
 
 <pre class="language-ruby">config<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>define vmName <span class="token operator">=</span> hostname <span class="token keyword">do</span> <span class="token operator">|</span>kHost<span class="token operator">|</span>
   kHost<span class="token punctuation">.</span>vm<span class="token punctuation">.</span>hostname <span class="token operator">=</span> vmName
@@ -751,7 +1195,7 @@ kube-kubelet.service
 /opt/bin/kubectl create -f /home/core/coredns-deployment.yaml
 </pre>
 <hr>
-<h6 class="mume-header" id="coreos-file-list">CoreOS File List</h6>
+<h3 class="mume-header" id="coreos-file-list">CoreOS File List</h3>
 
 <ul>
 <li><code>~/coredns-deployment.yaml</code></li>
@@ -2512,12 +2956,14 @@ esac
 * <a href="#docker_options">DOCKER_OPTIONS</a><br>
 * <a href="#masteryml">master.yml</a></li>
 <li><a href="#vagrantfile-%E8%A7%A3%E6%9E%90">Vagrantfile 解析</a><br>
-* <a href="#%E9%A2%84%E5%A4%87">预备</a><br>
-* <a href="#%E6%A0%B8%E5%BF%83%E9%83%A8%E5%88%86%E7%BB%93%E6%9E%84">核心部分结构</a><br>
+* <a href="#vagrantfile-1">Vagrantfile (1)</a><br>
+* <a href="#vagrantfile-2">Vagrantfile (2)</a><br>
+* <a href="#vagrantfile-3">Vagrantfile (3)</a><br>
+* <a href="#configvmdefine">config.vm.define</a><br>
 * <a href="#%E5%88%86%E9%98%B6%E6%AE%B5%E6%96%87%E4%BB%B6%E6%A3%80%E6%9F%A5">分阶段文件检查</a><br>
 * <a href="#vagrantfile-user-data">vagrantfile-user-data</a><br>
-* <a href="#after-up-resume">after [:up, :resume]</a><br>
-* <a href="#coreos-file-list">CoreOS File List</a><br>
+* <a href="#after-up-resume">after [:up, :resume]</a></li>
+<li><a href="#coreos-file-list">CoreOS File List</a><br>
 * <a href="#coredns-deploymentyaml">coredns-deployment.yaml</a><br>
 * <a href="#kubectlsetup">kubectlsetup</a><br>
 * <a href="#master-kubeconfigyaml">master-kubeconfig.yaml</a><br>
