@@ -1,0 +1,161 @@
+#cloud-config
+
+---
+write-files:
+  - path: /etc/conf.d/nfs
+    permissions: '0644'
+    content: |
+      OPTS_RPC_MOUNTD=""
+  - path: /opt/bin/wupiao
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      # [w]ait [u]ntil [p]ort [i]s [a]ctually [o]pen
+      [ -n "$1" ] && \
+        until curl -o /dev/null -sIf http://${1}; do \
+          sleep 1 && echo .;
+        done;
+      exit $?
+
+coreos:
+  flannel:
+    interface: $public_ipv4
+  units:
+    - name: rpcbind.service
+      enable: true
+      command: start
+    - name: rpc-statd.service
+      enable: true
+      command: start
+    - name: etcd-member.service
+      command: start
+      content: |
+        [Unit]
+        Description=etcd
+        Documentation=https://github.com/coreos/etcd
+        [Service]
+        Environment='ETCD_IMAGE_TAG=v3.1.8'
+        Environment='ETCD_DATA_DIR=/var/lib/etcd'
+        Environment='ETCD_USER=etcd'
+        Type=notify
+        Restart=always
+        RestartSec=5s
+        LimitNOFILE=40000
+        TimeoutStartSec=0
+        ExecStart=/usr/lib/coreos/etcd-wrapper --name master \
+            --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+            --advertise-client-urls http://$public_ipv4:2379,http://$public_ipv4:4001 \
+            --listen-peer-urls http://$private_ipv4:2380,http://$private_ipv4:7001 \
+            --initial-advertise-peer-urls http://$private_ipv4:2380 \
+            --initial-cluster master=http://192.168.99.101:2380
+        [Install]
+        WantedBy=multi-user.target
+    - name: flanneld.service
+      command: start
+      drop-ins:
+        - name: 50-network-config.conf
+          content: |
+            [Unit]
+            Requires=etcd-member.service
+            [Service]
+            ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config '{"Network":"10.244.0.0/16", "Backend": {"Type": "host-gw"}}'
+    - name: docker.service
+      command: start
+      drop-ins:
+        - name: 51-docker-mirror.conf
+        - name: 40-flannel.conf
+          content: |
+            [Unit]
+            Requires=flanneld.service
+            After=flanneld.service
+        - name: 50-docker-options.conf
+          content: |
+            [Service]
+            Environment='DOCKER_OPTS=--storage-driver=overlay2 --registry-mirror=https://4ue5z1dy.mirror.aliyuncs.com'
+    - name: early-docker.service
+      drop-ins:
+    - name: kube-certs.service
+      command: start
+      content: |
+        [Unit]
+        Description=Generate Kubernetes API Server certificates
+        ConditionPathExists=/tmp/make-certs.sh
+        Requires=network-online.target
+        After=network-online.target
+        [Service]
+        ExecStartPre=-/usr/sbin/groupadd -r kube-cert
+        ExecStartPre=/usr/bin/chmod 755 /tmp/make-certs.sh
+        ExecStart=/tmp/make-certs.sh
+        Type=oneshot
+        RemainAfterExit=true
+    - name: hyperkube-download.service
+      command: start
+      content: |
+        [Unit]
+        Description=Download Hyperkube Docker image
+        Requires=docker.service
+        After=docker.service
+        ConditionPathExists=!/vagrant/artifacts/hyperkube_v1.9.2.tar
+        [Service]
+        # ExecStart=/usr/bin/docker pull gcr.io/google_containers/hyperkube-amd64:v1.9.2
+        # ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube_v1.9.2.tar gcr.io/google_containers/hyperkube-amd64:v1.9.2
+        ExecStart=/usr/bin/docker pull wangwg2/hyperkube-amd64:v1.9.2
+        ExecStart=/usr/bin/docker save --output /vagrant/artifacts/hyperkube_v1.9.2.tar wangwg2/hyperkube-amd64:v1.9.2
+        Type=oneshot
+        RemainAfterExit=true
+    - name: hyperkube-import.service
+      command: start
+      content: |
+        [Unit]
+        Description=Import Hyperkube Docker image
+        Requires=docker.service
+        After=docker.service
+        ConditionPathExists=/vagrant/artifacts/hyperkube_v1.9.2.tar
+        [Service]
+        ExecStart=/usr/bin/docker load --input /vagrant/artifacts/hyperkube_v1.9.2.tar
+        Type=oneshot
+        RemainAfterExit=true
+    - name: kube-kubelet.service
+      command: start
+      content: |
+        [Unit]
+        Description=Kubernetes Kubelet
+        Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+        Requires=kube-certs.service
+        Wants=hyperkube-download.service hyperkube-import.service
+        After=kube-certs.service hyperkube-download.service hyperkube-import.service
+        [Service]
+        ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
+        ExecStartPre=-/usr/bin/docker rm -f kubelet
+        ExecStart=/usr/bin/docker run \
+          --volume=/:/rootfs:ro \
+          --volume=/sys:/sys:ro \
+          --volume=/etc/kubernetes:/etc/kubernetes:ro \
+          --volume=/var/lib/docker/:/var/lib/docker:rw \
+          --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
+          --volume=/var/run:/var/run:rw \
+          --net=host \
+          --pid=host \
+          --privileged=true \
+          --name=kubelet \
+          -d \
+          wangwg2/hyperkube-amd64:v1.9.2 \
+            /hyperkube kubelet \
+            --address=$private_ipv4 \
+            --network-plugin= \
+            --pod-infra-container-image=wangwg2/pause-amd64:3.0 \
+            --register-schedulable=false \
+            --allow-privileged=true \
+            --pod-manifest-path=/etc/kubernetes/manifests \
+            --hostname-override=$public_ipv4 \
+            --cluster_dns=10.100.0.10 \
+            --cluster_domain=cluster.local \
+            --kubeconfig=/etc/kubernetes/master-kubeconfig.yaml
+        Restart=on-failure
+        RestartSec=10
+        WorkingDirectory=/root/
+        [Install]
+        WantedBy=multi-user.target
+  update:
+    group: alpha
+    reboot-strategy: off

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-proxy
+  namespace: kube-system
+spec:
+  hostNetwork: true
+  containers:
+  - name: kube-proxy
+    image: wangwg2/hyperkube-amd64:v1.9.2
+    command:
+      - /hyperkube
+      - proxy
+      - --master=http://192.168.99.101:8080
+      - --proxy-mode=iptables
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - mountPath: /etc/ssl/certs
+      name: ssl-certs-host
+      readOnly: true
+  volumes:
+  - name: ssl-certs-host
+    hostPath:
+      path: /usr/share/ca-certificates
