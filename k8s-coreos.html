@@ -5,7 +5,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
-      <link rel="stylesheet" href="file:///C:\Users\wangw\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.3.2\node_modules\@shd101wyy\mume\dependencies\katex\katex.min.css">
+      <link rel="stylesheet" href="file:///C:\Users\wangwg2\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.3.2\node_modules\@shd101wyy\mume\dependencies\katex\katex.min.css">
       
       
       
@@ -221,7 +221,7 @@ html body h6 {
 }
 html body pre,
 html body code {
-  font-family: "Monaco", "Courier New", "Microsoft YaHei", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", sans-serif;
+  font-family: "Microsoft YaHei Mono", "Monaco", "Courier New", "Microsoft YaHei", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", sans-serif;
 }
  
       </style>
@@ -860,24 +860,24 @@ node: (src <code>node.yaml</code> -&gt; <code>/var/lib/coreos-vagrant/vagrantfil
 <pre class="language-yaml"><span class="token comment" spellcheck="true">#cloud-config</span>
 <span class="token punctuation">---</span>
 write<span class="token punctuation">-</span>files
-	<span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /etc/conf.d/nfs …
-	<span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /opt/bin/wupiao …
+  <span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /etc/conf.d/nfs …
+  <span class="token punctuation">-</span> <span class="token key atrule">path</span><span class="token punctuation">:</span> /opt/bin/wupiao …
 <span class="token key atrule">coreos</span><span class="token punctuation">:</span>
-	<span class="token key atrule">flannel</span><span class="token punctuation">:</span>
-		<span class="token key atrule">interface</span><span class="token punctuation">:</span> $public_ipv4
-	<span class="token key atrule">units</span><span class="token punctuation">:</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpcbind.service <span class="token punctuation">...</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpc<span class="token punctuation">-</span>statd.service <span class="token punctuation">...</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> etcd<span class="token punctuation">-</span>member.service <span class="token punctuation">...</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> flanneld.service <span class="token punctuation">...</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> docker.service <span class="token punctuation">...</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> early<span class="token punctuation">-</span>docker.service <span class="token punctuation">...</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>certs.service <span class="token punctuation">...</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> hyperkube<span class="token punctuation">-</span>download.service <span class="token punctuation">...</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> hyperkube<span class="token punctuation">-</span>import.service <span class="token punctuation">...</span>
-		<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>kubelet.service <span class="token punctuation">...</span>
-	<span class="token key atrule">update</span><span class="token punctuation">:</span>
-		<span class="token key atrule">group</span><span class="token punctuation">:</span> alpha
+  <span class="token key atrule">flannel</span><span class="token punctuation">:</span>
+    <span class="token key atrule">interface</span><span class="token punctuation">:</span> $public_ipv4
+  <span class="token key atrule">units</span><span class="token punctuation">:</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpcbind.service <span class="token punctuation">...</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> rpc<span class="token punctuation">-</span>statd.service <span class="token punctuation">...</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> etcd<span class="token punctuation">-</span>member.service <span class="token punctuation">...</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> flanneld.service <span class="token punctuation">...</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> docker.service <span class="token punctuation">...</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> early<span class="token punctuation">-</span>docker.service <span class="token punctuation">...</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>certs.service <span class="token punctuation">...</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> hyperkube<span class="token punctuation">-</span>download.service <span class="token punctuation">...</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> hyperkube<span class="token punctuation">-</span>import.service <span class="token punctuation">...</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> kube<span class="token punctuation">-</span>kubelet.service <span class="token punctuation">...</span>
+  <span class="token key atrule">update</span><span class="token punctuation">:</span>
+    <span class="token key atrule">group</span><span class="token punctuation">:</span> alpha
     <span class="token key atrule">reboot-strategy</span><span class="token punctuation">:</span> off
 </pre>
 <ul>
