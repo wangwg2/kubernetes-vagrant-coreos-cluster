@@ -105,6 +105,31 @@ ExecStart=/usr/bin/docker run \
     --cluster_domain=__DNS_DOMAIN__ \
     --kubeconfig=/etc/kubernetes/master-kubeconfig.yaml
 ```
+docker run 说明：
+* `--net` 指定容器的网络类型：`bridge` / `host` / `none` / `container`
+* `--pid` PID 命名空间
+* `--privileged` 给容器扩展特权
+
+kubelet 说明：
+* `--address`
+  kubelet 服务监听的地址 (默认: 0.0.0.0)
+* `--pod-infra-container-image`
+  基础镜像地址，每个 pod 最先启动的容器，会配置共享的网络
+  (默认: gcr.io/google_containers/pause-amd64:3.0)
+* `--register-schedulable=false`
+* `--allow-privileged`
+  是否允许容器运行在 privileged 模式 (默认:false)
+* `--pod-manifest-path`
+  本地 manifest 文件的路径或者目录 (默认:"")
+* `--hostname-override`
+  指定 hostname，如果非空会使用这个值作为节点在集群中的标识
+* `--cluster-dns stringSlice`
+  逗号分隔的 DNS 服务器 IP 地址. This value is used for containers DNS server in case of Pods with "dnsPolicy=ClusterFirst". Note: all DNS servers appearing in the list MUST serve the same set of records otherwise name resolution within the cluster may not work correctly. There is no guarantee as to which DNS server may be contacted for name resolution.
+* `--cluster-domain string`
+  Domain for this cluster. If set, kubelet will configure all containers to search this domain in addition to the host's search domains  
+* `--kubeconfig string`
+  kubeconfig 文件, 说明如何连接 API server. (默认："/var/lib/kubelet/kubeconfig")
+
 
 
 ---
