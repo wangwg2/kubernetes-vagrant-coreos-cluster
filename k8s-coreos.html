@@ -5,7 +5,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
-      <link rel="stylesheet" href="file:///C:\Users\wangw\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.3.2\node_modules\@shd101wyy\mume\dependencies\katex\katex.min.css">
+      <link rel="stylesheet" href="file:///C:\Users\wangwg2\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.3.2\node_modules\@shd101wyy\mume\dependencies\katex\katex.min.css">
       
       
       
@@ -221,7 +221,7 @@ html body h6 {
 }
 html body pre,
 html body code {
-  font-family: "Monaco", "Courier New", "Microsoft YaHei", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", sans-serif;
+  font-family: "Microsoft YaHei Mono", "Monaco", "Courier New", "Microsoft YaHei", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", sans-serif;
 }
  
       </style>
@@ -331,10 +331,32 @@ html body code {
     <span class="token punctuation">-</span><span class="token punctuation">-</span>cluster_domain=__DNS_DOMAIN__ \
     <span class="token punctuation">-</span><span class="token punctuation">-</span>kubeconfig=/etc/kubernetes/master<span class="token punctuation">-</span>kubeconfig.yaml
 </pre>
+<p>docker run 说明：</p>
 <ul>
 <li><code>--net</code> 指定容器的网络类型：<code>bridge</code> / <code>host</code> / <code>none</code> / <code>container</code></li>
 <li><code>--pid</code> PID 命名空间</li>
 <li><code>--privileged</code> 给容器扩展特权</li>
+</ul>
+<p>kubelet 说明：</p>
+<ul>
+<li><code>--address</code><br>
+kubelet 服务监听的地址 (默认: 0.0.0.0)</li>
+<li><code>--pod-infra-container-image</code><br>
+基础镜像地址，每个 pod 最先启动的容器，会配置共享的网络<br>
+(默认: <a href="http://gcr.io/google_containers/pause-amd64:3.0">gcr.io/google_containers/pause-amd64:3.0</a>)</li>
+<li><code>--register-schedulable=false</code></li>
+<li><code>--allow-privileged</code><br>
+是否允许容器运行在 privileged 模式 (默认:false)</li>
+<li><code>--pod-manifest-path</code><br>
+本地 manifest 文件的路径或者目录 (默认:&quot;&quot;)</li>
+<li><code>--hostname-override</code><br>
+指定 hostname，如果非空会使用这个值作为节点在集群中的标识</li>
+<li><code>--cluster-dns stringSlice</code><br>
+逗号分隔的 DNS 服务器 IP 地址. This value is used for containers DNS server in case of Pods with &quot;dnsPolicy=ClusterFirst&quot;. Note: all DNS servers appearing in the list MUST serve the same set of records otherwise name resolution within the cluster may not work correctly. There is no guarantee as to which DNS server may be contacted for name resolution.</li>
+<li><code>--cluster-domain string</code><br>
+Domain for this cluster. If set, kubelet will configure all containers to search this domain in addition to the host's search domains</li>
+<li><code>--kubeconfig string</code><br>
+kubeconfig 文件, 说明如何连接 API server. (默认：&quot;/var/lib/kubelet/kubeconfig&quot;)</li>
 </ul>
 <hr>
 <h3 class="mume-header" id="vagrantfile-%E8%A7%A3%E6%9E%90">Vagrantfile 解析</h3>
