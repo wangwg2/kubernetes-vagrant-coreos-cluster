@@ -231,8 +231,8 @@ html body code {
       <h2 class="mume-header" id="kubernetes-vagrant-coreos-cluster">kubernetes-vagrant-coreos-cluster</h2>
 
 <p>Kubernetes cluster (for testing purposes) made easy with Vagrant and CoreOS.<br>
-参考 <a href="https://github.com/pires/kubernetes-vagrant-coreos-cluster">pires/kubernetes-vagrant-coreos-cluster</a>.</p>
-<p><a href="https://platform9.com/docs/deploy-kubernetes-the-ultimate-guide/">Deploy Kubernetes: The Ultimate Guide</a></p>
+<a href="https://github.com/pires/kubernetes-vagrant-coreos-cluster">pires/kubernetes-vagrant-coreos-cluster</a>.<br>
+<a href="https://platform9.com/docs/deploy-kubernetes-the-ultimate-guide/">Deploy Kubernetes: The Ultimate Guide</a></p>
 <hr>
 <h3 class="mume-header" id="%E4%BF%AE%E6%94%B9%E8%AF%B4%E6%98%8E">修改说明</h3>
 
@@ -1903,7 +1903,7 @@ upstream <span class="token operator">=</span> <span class="token string">"http:
 <span class="token constant">GUI</span> <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'GUI'</span><span class="token punctuation">]</span><span class="token punctuation">.</span>to_s<span class="token punctuation">.</span>downcase <span class="token operator">==</span> <span class="token string">'true'</span><span class="token punctuation">)</span>
 <span class="token constant">USE_KUBE_UI</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'USE_KUBE_UI'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token keyword">false</span>
 
-<span class="token constant">BOX_TIMEOUT_COUNT</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'BOX_TIMEOUT_COUNT'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">50</span>
+<span class="token constant">BOX_TIMEOUT_COUNT</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'BOX_TIMEOUT_COUNT'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token number">100</span>
 
 <span class="token keyword">if</span> enable_proxy
   <span class="token constant">HTTP_PROXY</span> <span class="token operator">=</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'HTTP_PROXY'</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token constant">ENV</span><span class="token punctuation">[</span><span class="token string">'http_proxy'</span><span class="token punctuation">]</span>
