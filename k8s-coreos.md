@@ -1,3 +1,12 @@
+---
+html:
+  embed_local_images: true
+  embed_svg: true
+  offline: false
+  toc: Ansible
+print_background: false
+---
+
 ## kubernetes-vagrant-coreos-cluster
 Kubernetes cluster (for testing purposes) made easy with Vagrant and CoreOS.
 [pires/kubernetes-vagrant-coreos-cluster](https://github.com/pires/kubernetes-vagrant-coreos-cluster).
