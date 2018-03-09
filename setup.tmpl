@@ -4,7 +4,7 @@ set -e
 PLATFORM="$(uname -s | tr '[:upper:]' '[:lower:]')"
 KUBERNETES_VERSION=__KUBERNETES_VERSION__
 # KUB_URL="https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/${PLATFORM}/amd64/kubectl"
-KUB_URL="http://192.168.99.23:8080/kubectl"
+KUB_URL="http://192.168.99.23:8080/$(KUBERNETES_VERSION)/kubectl"
 
 scream () {
     cat <<< "$@" 1>&2
